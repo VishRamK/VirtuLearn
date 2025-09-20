@@ -7,6 +7,7 @@ from datetime import datetime, date
 from dotenv import load_dotenv
 import io
 import json
+import hashlib
 
 # Import data manager
 from utils.data_manager import LectureDataManager
@@ -21,14 +22,14 @@ def get_data_manager():
 
 # Page configuration
 st.set_page_config(
-    page_title="VirtuLearn - Teacher & Student Analytics",
+    page_title="VirtuLearn - Principal Lecture Evaluation System",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
         'Get Help': 'https://www.streamlit.io/community',
         'Report a bug': "https://github.com/yourusername/virtulearn/issues",
-        'About': "# VirtuLearn App\nTeacher Performance & Student Learning Analytics"
+        'About': "# VirtuLearn Principal Dashboard\nLecture Quality Evaluation & Analytics Platform"
     }
 )
 
@@ -48,7 +49,7 @@ st.markdown("""
         margin: 0.5rem 0;
         border-left: 4px solid #1f77b4;
     }
-    .lecture-card {
+    .evaluation-card {
         border: 1px solid #dee2e6;
         border-radius: 8px;
         padding: 1rem;
@@ -64,31 +65,108 @@ st.markdown("""
         text-align: center;
         margin: 1rem 0;
     }
-    .teacher-metric {
+    .principal-metric {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         padding: 1rem;
         border-radius: 10px;
         margin: 0.5rem 0;
     }
-    .student-metric {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    .score-excellent {
+        background: linear-gradient(135deg, #00c851 0%, #00695c 100%);
         color: white;
         padding: 1rem;
         border-radius: 10px;
-        margin: 0.5rem 0;
+        text-align: center;
+    }
+    .score-good {
+        background: linear-gradient(135deg, #ffbb33 0%, #ff8800 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+    }
+    .score-needs-improvement {
+        background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
 
-def show_lecture_upload(teacher_name="Dr. Smith", subject="Mathematics"):
-    """Display lecture upload interface for teachers"""
-    st.header("📚 Upload Lecture Materials")
+def calculate_lecture_score(transcript_text, topics_covered, learning_objectives, duration):
+    """Calculate lecture quality score based on multiple factors"""
+    score_components = {}
+    
+    # 1. Content Correctness (40% of total score)
+    word_count = len(transcript_text.split())
+    content_density = min(word_count / (duration * 10), 1.0) if duration else 0.5  # Target: 10 words per minute
+    correctness_score = content_density * 40
+    score_components['Content Correctness'] = correctness_score
+    
+    # 2. Class Engagement Indicators (35% of total score)
+    question_keywords = ['question', 'ask', 'think', 'discuss', 'what do you', 'anyone', 'raise your hand']
+    engagement_count = sum(transcript_text.lower().count(keyword) for keyword in question_keywords)
+    engagement_score = min(engagement_count * 3, 35)  # Max 35 points for engagement
+    score_components['Class Engagement'] = engagement_score
+    
+    # 3. Structure and Organization (15% of total score)
+    structure_keywords = ['first', 'second', 'third', 'next', 'finally', 'in conclusion', 'to summarize']
+    structure_count = sum(transcript_text.lower().count(keyword) for keyword in structure_keywords)
+    structure_score = min(structure_count * 2, 15)  # Max 15 points for structure
+    score_components['Structure & Organization'] = structure_score
+    
+    # 4. Topic Coverage (10% of total score)
+    topics_list = [topic.strip() for topic in topics_covered.split(",")] if topics_covered else []
+    topic_coverage_score = min(len(topics_list) * 2, 10)  # Max 10 points for topic coverage
+    score_components['Topic Coverage'] = topic_coverage_score
+    
+    total_score = sum(score_components.values())
+    
+    return total_score, score_components
+
+def generate_evaluation_report(score, score_components, transcript_text, topics_covered):
+    """Generate detailed evaluation report"""
+    report = {
+        'overall_score': score,
+        'grade': 'A' if score >= 85 else 'B' if score >= 75 else 'C' if score >= 65 else 'D' if score >= 55 else 'F',
+        'score_breakdown': score_components,
+        'word_count': len(transcript_text.split()),
+        'topics_covered': [topic.strip() for topic in topics_covered.split(",")] if topics_covered else [],
+        'timestamp': datetime.now().isoformat(),
+    }
+    
+    # Generate recommendations based on score
+    recommendations = []
+    if score_components['Content Correctness'] < 30:
+        recommendations.append("⚠️ Increase content density - aim for more comprehensive coverage")
+    if score_components['Class Engagement'] < 25:
+        recommendations.append("⚠️ Incorporate more interactive elements and student questions")
+    if score_components['Structure & Organization'] < 10:
+        recommendations.append("⚠️ Improve lecture structure with clear transitions and summaries")
+    if score_components['Topic Coverage'] < 8:
+        recommendations.append("⚠️ Cover more diverse topics to enhance learning breadth")
+    
+    if score >= 85:
+        recommendations.append("🌟 Excellent lecture quality! Maintain this high standard")
+    elif score >= 75:
+        recommendations.append("👍 Good lecture quality with room for minor improvements")
+    else:
+        recommendations.append("📈 Focus on improving engagement and content structure")
+    
+    report['recommendations'] = recommendations
+    return report
+
+def show_lecture_upload():
+    """Display lecture upload and evaluation interface for principal"""
+    st.header("📚 Lecture Evaluation System")
     
     st.markdown("""
     <div class="upload-section">
-        <h3>📚 Upload Your Lecture Content</h3>
-        <p>Upload transcript, slides, and supplementary materials for analysis</p>
+        <h3>🎯 Upload Lecture Materials for Quality Assessment</h3>
+        <p>Upload teacher lecture transcripts and materials to evaluate teaching quality and engagement</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -96,51 +174,45 @@ def show_lecture_upload(teacher_name="Dr. Smith", subject="Mathematics"):
     
     with col1:
         st.subheader("Lecture Information")
+        teacher_name = st.text_input("Teacher Name:", placeholder="e.g., Dr. Smith")
         lecture_title = st.text_input("Lecture Title:", placeholder="e.g., Introduction to Calculus")
         lecture_date = st.date_input("Lecture Date:", value=datetime.now().date())
         course_code = st.text_input("Course Code:", placeholder="e.g., MATH101")
         duration = st.number_input("Duration (minutes):", min_value=1, max_value=180, value=50)
+        class_size = st.number_input("Class Size:", min_value=1, max_value=200, value=25)
         
-        st.subheader("Content Classification")
-        difficulty_level = st.selectbox("Difficulty Level:", ["Beginner", "Intermediate", "Advanced"])
-        topics_covered = st.text_area("Topics Covered:", placeholder="List main topics separated by commas")
+        st.subheader("Expected Content")
+        topics_covered = st.text_area("Topics to be Covered:", placeholder="List expected topics separated by commas")
         learning_objectives = st.text_area("Learning Objectives:", placeholder="What should students learn?")
     
     with col2:
-        st.subheader("File Uploads")
+        st.subheader("Upload Materials")
         
-        # Transcript upload
+        # Transcript upload (required)
         transcript_file = st.file_uploader(
-            "📝 Upload Lecture Transcript",
+            "📝 Upload Lecture Transcript (Required)",
             type=['txt', 'docx', 'pdf'],
-            help="Upload the lecture transcript in text, Word, or PDF format"
+            help="Upload the lecture transcript for evaluation"
         )
         
-        # Slides upload
+        # Slides upload (optional)
         slides_file = st.file_uploader(
-            "🖼️ Upload Lecture Slides",
+            "🖼️ Upload Lecture Slides (Optional)",
             type=['pptx', 'pdf', 'ppt'],
-            help="Upload your presentation slides"
+            help="Upload lecture slides for additional context"
         )
         
-        # Additional materials
+        # Additional materials (optional)
         materials_files = st.file_uploader(
-            "📎 Upload Additional Materials",
-            type=['pdf', 'docx', 'xlsx', 'txt', 'jpg', 'png'],
+            "📎 Upload Additional Materials (Optional)",
+            type=['pdf', 'docx', 'xlsx', 'txt'],
             accept_multiple_files=True,
             help="Upload handouts, assignments, or reference materials"
         )
-        
-        # Audio/Video (optional)
-        media_file = st.file_uploader(
-            "🎥 Upload Audio/Video (Optional)",
-            type=['mp4', 'mp3', 'wav', 'avi'],
-            help="Upload lecture recording if available"
-        )
     
-    if st.button("🚀 Analyze Lecture Content", type="primary"):
-        if transcript_file and lecture_title:
-            with st.spinner("Analyzing lecture content..."):
+    if st.button("🔍 Evaluate Lecture Quality", type="primary"):
+        if transcript_file and teacher_name and lecture_title:
+            with st.spinner("Evaluating lecture quality..."):
                 try:
                     # Get data manager
                     data_manager = get_data_manager()
@@ -155,21 +227,48 @@ def show_lecture_upload(teacher_name="Dr. Smith", subject="Mathematics"):
                     else:
                         transcript_text = str(transcript_file.read(), "utf-8")
                     
-                    # Extract topics and objectives
-                    topics_list = [topic.strip() for topic in topics_covered.split(",")] if topics_covered else []
-                    objectives_list = [obj.strip() for obj in learning_objectives.split(",")] if learning_objectives else []
+                    # Calculate lecture quality score
+                    score, score_components = calculate_lecture_score(
+                        transcript_text, topics_covered, learning_objectives, duration
+                    )
+                    
+                    # Generate evaluation report
+                    evaluation_report = generate_evaluation_report(
+                        score, score_components, transcript_text, topics_covered
+                    )
                     
                     # Create lecture entry in database
                     lecture_id = data_manager.create_lecture_entry(
                         title=lecture_title,
-                        teacher_id=teacher_name,  # Using teacher name as ID for demo
+                        teacher_id=teacher_name,
                         course_code=course_code,
                         date=lecture_date,
                         transcript_text=transcript_text,
                         duration=int(duration) if duration else None,
-                        topics=topics_list,
-                        objectives=objectives_list
+                        topics=[topic.strip() for topic in topics_covered.split(",")] if topics_covered else [],
+                        objectives=[obj.strip() for obj in learning_objectives.split(",")] if learning_objectives else []
                     )
+                    
+                    # Store evaluation results in database
+                    evaluation_data = {
+                        'lecture_id': lecture_id,
+                        'teacher_name': teacher_name,
+                        'course_code': course_code,
+                        'lecture_title': lecture_title,
+                        'evaluation_score': score,
+                        'score_breakdown': score_components,
+                        'evaluation_report': evaluation_report,
+                        'class_size': class_size,
+                        'evaluation_timestamp': datetime.now(),
+                        'evaluated_by': 'Principal'
+                    }
+                    
+                    # Store evaluation in database
+                    if hasattr(data_manager, 'store_evaluation'):
+                        eval_id = data_manager.store_evaluation(evaluation_data)
+                    else:
+                        # Store as metadata if store_evaluation doesn't exist
+                        eval_id = data_manager.save_lecture_data(lecture_id, evaluation_data, 'evaluation')
                     
                     # Store additional files if uploaded
                     if slides_file:
@@ -179,7 +278,6 @@ def show_lecture_upload(teacher_name="Dr. Smith", subject="Mathematics"):
                             filename=slides_file.name,
                             file_type="slides"
                         )
-                        st.success(f"📊 Slides stored with ID: {file_id}")
                     
                     if materials_files:
                         for material_file in materials_files:
@@ -189,512 +287,240 @@ def show_lecture_upload(teacher_name="Dr. Smith", subject="Mathematics"):
                                 filename=material_file.name,
                                 file_type="material"
                             )
-                        st.success(f"📎 {len(materials_files)} additional materials stored")
                     
-                    if media_file:
-                        file_id = data_manager.store_uploaded_file(
-                            lecture_id=lecture_id,
-                            file_content=media_file.read(),
-                            filename=media_file.name,
-                            file_type="media"
-                        )
-                        st.success(f"🎥 Media file stored with ID: {file_id}")
+                    # Display evaluation results
+                    st.success(f"✅ Lecture evaluation completed! Evaluation ID: {eval_id}")
                     
-                    # Get analysis results from database
-                    lecture_data = data_manager.load_lecture_data(lecture_id, 'metadata')
+                    # Show evaluation score with color coding
+                    st.subheader("🎯 Lecture Quality Evaluation")
                     
-                    st.success(f"✅ Lecture uploaded and analyzed successfully! Lecture ID: {lecture_id}")
+                    score_col1, score_col2, score_col3 = st.columns([2, 1, 1])
                     
-                    # Show analysis preview
-                    st.subheader("📊 Quick Analysis Preview")
-                    col1, col2, col3, col4 = st.columns(4)
+                    with score_col1:
+                        if score >= 85:
+                            st.markdown(f"""
+                            <div class="score-excellent">
+                                <h2>Overall Score: {score:.1f}/100</h2>
+                                <h3>Grade: {evaluation_report['grade']} - Excellent!</h3>
+                                <p>🌟 Outstanding lecture quality</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        elif score >= 70:
+                            st.markdown(f"""
+                            <div class="score-good">
+                                <h2>Overall Score: {score:.1f}/100</h2>
+                                <h3>Grade: {evaluation_report['grade']} - Good</h3>
+                                <p>👍 Solid lecture with room for improvement</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                            <div class="score-needs-improvement">
+                                <h2>Overall Score: {score:.1f}/100</h2>
+                                <h3>Grade: {evaluation_report['grade']} - Needs Improvement</h3>
+                                <p>⚠️ Requires significant enhancement</p>
+                            </div>
+                            """, unsafe_allow_html=True)
                     
+                    with score_col2:
+                        st.metric("Teacher", teacher_name, f"Class Size: {class_size}")
+                        st.metric("Duration", f"{duration} min", f"Words: {evaluation_report['word_count']:,}")
+                    
+                    with score_col3:
+                        st.metric("Course", course_code, f"Date: {lecture_date}")
+                        st.metric("Topics", f"{len(evaluation_report['topics_covered'])}", "Covered")
+                    
+                    # Score breakdown
+                    st.subheader("📊 Detailed Score Breakdown")
+                    total_score = sum(score_components.values())
+                    breakdown_df = pd.DataFrame({
+                        'Component': list(score_components.keys()),
+                        'Score': list(score_components.values()),
+                        'Percentage': [f"{(comp_score/total_score)*100:.1f}%" if total_score > 0 else "0%" for comp_score in score_components.values()]
+                    })
+                    
+                    col1, col2 = st.columns(2)
                     with col1:
-                        word_count = lecture_data.get('word_count', 0) if lecture_data else 0
-                        st.metric("Word Count", f"{word_count:,}", "📝 Analyzed")
+                        st.dataframe(breakdown_df, hide_index=True, use_container_width=True)
                     
                     with col2:
-                        readability = lecture_data.get('readability_score', 0) if lecture_data else 0
-                        st.metric("Readability Score", f"{readability}/100", "✅ Measured")
+                        fig = px.bar(breakdown_df, x='Component', y='Score', 
+                                   title="Score Distribution by Component",
+                                   color='Score', color_continuous_scale='RdYlGn')
+                        fig.update_xaxes(tickangle=45)
+                        st.plotly_chart(fig, use_container_width=True)
                     
-                    with col3:
-                        engagement = lecture_data.get('estimated_engagement', 0) if lecture_data else 0
-                        st.metric("Engagement Level", f"{engagement}%", "📊 Calculated")
+                    # Recommendations
+                    st.subheader("💡 Evaluation Recommendations")
+                    for i, recommendation in enumerate(evaluation_report['recommendations'], 1):
+                        st.write(f"{i}. {recommendation}")
                     
-                    with col4:
-                        topics_count = len(topics_list) if topics_list else 0
-                        st.metric("Topics Covered", f"{topics_count} topics", "📚 Catalogued")
-                    
-                    st.info("📈 Full analysis available in Performance Dashboard")
-                    
-                    # Display storage status
+                    # Database storage confirmation
                     if data_manager.use_mongodb:
-                        st.success("💾 All data stored in MongoDB cloud database")
+                        st.success("💾 Evaluation results stored in MongoDB database for analytics tracking")
                     else:
-                        st.warning("💾 Data stored locally (MongoDB connection failed)")
+                        st.warning("💾 Evaluation stored locally (MongoDB connection failed)")
                     
                 except Exception as e:
-                    st.error(f"❌ Error processing lecture: {str(e)}")
+                    st.error(f"❌ Error evaluating lecture: {str(e)}")
                     st.exception(e)
         else:
-            st.error("Please provide at least a lecture title and transcript file.")
+            st.error("Please provide teacher name, lecture title, and transcript file.")
 
-def show_teacher_dashboard(teacher_name="Dr. Smith"):
-    """Display teacher performance dashboard"""
-    st.header("👨‍🏫 Teacher Performance Dashboard")
+def show_analytics_dashboard():
+    """Display analytics dashboard with evolving insights"""
+    st.header("📈 School-wide Lecture Analytics")
     
     # Key performance metrics
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown("""
-        <div class="teacher-metric">
-            <h4>📊 Teaching Score</h4>
-            <h2>8.7/10</h2>
-            <p>↗️ +0.3 this month</p>
+        <div class="principal-metric">
+            <h4>📊 Average Lecture Score</h4>
+            <h2>78.4/100</h2>
+            <p>↗️ +2.3 this month</p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown("""
-        <div class="teacher-metric">
-            <h4>🎯 Student Engagement</h4>
-            <h2>89%</h2>
-            <p>↗️ +5% vs last month</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="teacher-metric">
-            <h4>📝 Lectures Analyzed</h4>
-            <h2>24</h2>
+        <div class="principal-metric">
+            <h4>🎯 Lectures Evaluated</h4>
+            <h2>127</h2>
             <p>📅 This semester</p>
         </div>
         """, unsafe_allow_html=True)
     
-    with col4:
+    with col3:
         st.markdown("""
-        <div class="teacher-metric">
-            <h4>👥 Students Helped</h4>
-            <h2>156</h2>
-            <p>🎓 Across all courses</p>
+        <div class="principal-metric">
+            <h4>👨‍🏫 Teachers Assessed</h4>
+            <h2>24</h2>
+            <p>🏫 School-wide</p>
         </div>
         """, unsafe_allow_html=True)
     
-    # Performance trends
+    with col4:
+        st.markdown("""
+        <div class="principal-metric">
+            <h4>📚 Courses Covered</h4>
+            <h2>18</h2>
+            <p>🎓 All departments</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Analytics trends
+    st.subheader("📈 Lecture Quality Trends Over Time")
+    
+    # Generate sample trend data
+    dates = pd.date_range(start='2024-01-01', periods=30, freq='W')
+    trend_data = pd.DataFrame({
+        'Date': dates,
+        'Average_Score': np.random.normal(76, 5, len(dates)) + np.linspace(0, 6, len(dates)),  # Improving trend
+        'Lectures_Count': np.random.poisson(8, len(dates)),
+        'Teacher_Participation': np.random.normal(85, 8, len(dates))
+    })
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("📈 Teaching Performance Trends")
-        
-        # Generate sample data
-        dates = pd.date_range(start='2024-01-01', periods=20, freq='W')
-        performance_data = pd.DataFrame({
-            'Date': dates,
-            'Teaching_Score': np.random.normal(8.5, 0.5, len(dates)),
-            'Engagement_Rate': np.random.normal(85, 5, len(dates)),
-            'Content_Quality': np.random.normal(8.2, 0.3, len(dates))
-        })
-        
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=performance_data['Date'], y=performance_data['Teaching_Score'],
-                                mode='lines+markers', name='Teaching Score'))
-        fig.add_trace(go.Scatter(x=performance_data['Date'], y=performance_data['Engagement_Rate']/10,
-                                mode='lines+markers', name='Engagement Rate'))
-        
-        fig.update_layout(title="Performance Over Time", yaxis_title="Score (1-10)")
+        fig.add_trace(go.Scatter(x=trend_data['Date'], y=trend_data['Average_Score'],
+                                mode='lines+markers', name='Average Lecture Score',
+                                line=dict(color='#1f77b4', width=3)))
+        fig.update_layout(title="Average Lecture Quality Over Time", 
+                         yaxis_title="Score (0-100)", xaxis_title="Date")
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.subheader("🎯 Areas for Improvement")
-        
-        improvement_areas = pd.DataFrame({
-            'Area': ['Lecture Clarity', 'Student Interaction', 'Content Depth', 'Time Management', 'Technology Use'],
-            'Current Score': [8.5, 7.8, 9.2, 8.1, 7.3],
-            'Target Score': [9.0, 8.5, 9.5, 8.8, 8.0]
-        })
-        
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=improvement_areas['Area'], y=improvement_areas['Current Score'],
-                            name='Current', marker_color='lightblue'))
-        fig.add_trace(go.Bar(x=improvement_areas['Area'], y=improvement_areas['Target Score'],
-                            name='Target', marker_color='darkblue'))
-        
-        fig.update_layout(title="Improvement Targets", yaxis_title="Score", barmode='group')
+        fig = px.bar(trend_data.tail(10), x='Date', y='Lectures_Count',
+                     title="Weekly Lecture Evaluations",
+                     color='Lectures_Count', color_continuous_scale='Blues')
         st.plotly_chart(fig, use_container_width=True)
     
-    # Recent lectures
-    st.subheader("📚 Recent Lectures")
-    recent_lectures = pd.DataFrame({
-        'Date': ['2024-09-18', '2024-09-15', '2024-09-13', '2024-09-11'],
-        'Lecture Title': ['Introduction to Derivatives', 'Limits and Continuity', 'Function Graphs', 'Polynomial Functions'],
-        'Engagement Score': ['92%', '88%', '85%', '90%'],
-        'Student Questions': [15, 12, 8, 18],
-        'Analysis Status': ['✅ Complete', '✅ Complete', '✅ Complete', '⏳ Processing']
+    # Department-wise analysis
+    st.subheader("🏫 Department Performance Analysis")
+    
+    dept_data = pd.DataFrame({
+        'Department': ['Mathematics', 'Science', 'English', 'History', 'Computer Science', 'Arts'],
+        'Average_Score': [82.3, 79.1, 85.2, 77.8, 88.5, 74.9],
+        'Lectures_Evaluated': [25, 22, 18, 15, 12, 8],
+        'Top_Teacher': ['Dr. Smith', 'Prof. Johnson', 'Ms. Davis', 'Mr. Wilson', 'Dr. Brown', 'Ms. Garcia']
     })
-    st.dataframe(recent_lectures, use_container_width=True, hide_index=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        fig = px.bar(dept_data, x='Department', y='Average_Score',
+                     title="Average Lecture Scores by Department",
+                     color='Average_Score', color_continuous_scale='RdYlGn')
+        fig.update_xaxes(tickangle=45)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.dataframe(dept_data, hide_index=True, use_container_width=True)
 
-def show_lecture_analysis(teacher_name="Dr. Smith"):
-    """Display detailed lecture analysis"""
-    st.header("🔍 Lecture Analysis")
+def show_teacher_performance():
+    """Display individual teacher performance metrics"""
+    st.header("👨‍🏫 Teacher Performance Overview")
     
-    # Lecture selector
-    lecture_options = [
-        "Introduction to Derivatives - Sept 18",
-        "Limits and Continuity - Sept 15", 
-        "Function Graphs - Sept 13",
-        "Polynomial Functions - Sept 11"
-    ]
-    selected_lecture = st.selectbox("Select Lecture to Analyze:", lecture_options)
+    # Teacher selection
+    teachers = ['Dr. Smith', 'Prof. Johnson', 'Ms. Davis', 'Mr. Wilson', 'Dr. Brown', 'Ms. Garcia']
+    selected_teacher = st.selectbox("Select Teacher for Detailed Analysis:", teachers)
     
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "📝 Content Analysis", "👥 Student Impact", "🎯 Recommendations"])
-    
-    with tab1:
-        st.subheader("Lecture Overview")
-        
+    if selected_teacher:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric("Duration", "52 minutes", "2 min over planned")
-            st.metric("Word Count", "2,847 words", "12% above average")
+            st.metric("Average Score", "84.2/100", "↗️ +3.1 vs last month")
+            st.metric("Lectures Evaluated", "12", "This semester")
         
         with col2:
-            st.metric("Speaking Pace", "142 WPM", "✅ Optimal range")
-            st.metric("Pauses/Breaks", "23", "🎯 Good distribution")
+            st.metric("Best Score", "92.5/100", "Recent improvement")
+            st.metric("Consistency", "High", "Low variance")
         
         with col3:
-            st.metric("Questions Asked", "15", "↗️ +3 vs average")
-            st.metric("Student Responses", "12", "80% response rate")
+            st.metric("Improvement Rate", "+15%", "Since first evaluation")
+            st.metric("Ranking", "3rd", "Out of 24 teachers")
         
-        # Content breakdown
-        st.subheader("📚 Content Breakdown")
-        content_data = pd.DataFrame({
-            'Content Type': ['Explanation', 'Examples', 'Q&A', 'Review', 'Practice'],
-            'Time (minutes)': [25, 12, 8, 4, 3],
-            'Percentage': [48, 23, 15, 8, 6]
+        # Individual lecture scores
+        st.subheader(f"📊 {selected_teacher}'s Lecture Quality Timeline")
+        
+        # Generate sample data for selected teacher
+        lecture_dates = pd.date_range(start='2024-08-01', periods=12, freq='W')
+        teacher_scores = np.random.normal(82, 6, len(lecture_dates))
+        teacher_scores = np.clip(teacher_scores, 60, 95)  # Keep scores realistic
+        
+        teacher_data = pd.DataFrame({
+            'Date': lecture_dates,
+            'Score': teacher_scores,
+            'Lecture_Title': [f"Lecture {i+1}" for i in range(len(lecture_dates))]
         })
         
-        fig = px.pie(content_data, values='Time (minutes)', names='Content Type', 
-                     title="Time Distribution by Content Type")
+        fig = px.line(teacher_data, x='Date', y='Score', markers=True,
+                      title=f"{selected_teacher} - Lecture Quality Progress",
+                      hover_data=['Lecture_Title'])
+        fig.add_hline(y=80, line_dash="dash", line_color="orange", 
+                      annotation_text="School Average")
         st.plotly_chart(fig, use_container_width=True)
-    
-    with tab2:
-        st.subheader("📝 Content Quality Analysis")
-        
-        # Readability and complexity
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Readability Metrics")
-            readability_data = {
-                'Metric': ['Flesch Reading Ease', 'Grade Level', 'Avg Sentence Length', 'Complex Words %'],
-                'Score': [72.3, '9th Grade', '18 words', '15%'],
-                'Status': ['✅ Good', '✅ Appropriate', '⚠️ Slightly High', '✅ Good']
-            }
-            st.dataframe(pd.DataFrame(readability_data), hide_index=True)
-        
-        with col2:
-            st.subheader("Concept Coverage")
-            concepts = ['Derivatives', 'Chain Rule', 'Product Rule', 'Applications', 'Practice Problems']
-            coverage = [95, 85, 78, 90, 70]
-            
-            fig = px.bar(x=concepts, y=coverage, title="Concept Coverage %")
-            st.plotly_chart(fig, use_container_width=True)
-    
-    with tab3:
-        st.subheader("👥 Student Learning Impact")
-        
-        # Engagement metrics
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.metric("Pre-lecture Understanding", "45%", "Based on quiz")
-            st.metric("Post-lecture Understanding", "78%", "↗️ +33% improvement")
-            st.metric("Student Satisfaction", "4.3/5", "↗️ Above average")
-        
-        with col2:
-            # Engagement timeline
-            time_points = list(range(0, 55, 5))
-            engagement = [85, 88, 82, 75, 80, 85, 90, 88, 85, 82, 78]
-            
-            fig = px.line(x=time_points, y=engagement, title="Student Engagement Throughout Lecture",
-                         labels={'x': 'Time (minutes)', 'y': 'Engagement %'})
-            st.plotly_chart(fig, use_container_width=True)
-    
-    with tab4:
-        st.subheader("🎯 AI-Generated Recommendations")
-        
-        st.success("🌟 **Strengths Identified:**")
-        st.write("• Excellent use of real-world examples to explain derivatives")
-        st.write("• Good pacing with appropriate pauses for note-taking")
-        st.write("• Effective use of visual aids and board work")
-        
-        st.warning("⚠️ **Areas for Improvement:**")
-        st.write("• Consider breaking down complex sentences (avg 18 words)")
-        st.write("• Add more interactive elements during the middle section")
-        st.write("• Provide more practice problems for chain rule concept")
-        
-        st.info("💡 **Specific Suggestions:**")
-        st.write("• Implement a 2-minute group discussion at the 25-minute mark")
-        st.write("• Add 3-4 quick practice problems for immediate application")
-        st.write("• Use more analogies to explain abstract concepts")
-
-def show_student_feedback():
-    """Display student feedback and Q&A"""
-    st.header("💬 Student Feedback & Questions")
-    
-    # Feedback summary
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Overall Rating", "4.3/5", "↗️ +0.2")
-    
-    with col2:
-        st.metric("Response Rate", "87%", "↗️ +5%")
-    
-    with col3:
-        st.metric("Questions Submitted", "23", "This week")
-    
-    with col4:
-        st.metric("Clarity Score", "8.7/10", "↗️ +0.4")
-    
-    # Recent feedback
-    st.subheader("📝 Recent Student Feedback")
-    
-    feedback_data = pd.DataFrame({
-        'Date': ['2024-09-18', '2024-09-18', '2024-09-15', '2024-09-15'],
-        'Student': ['Anonymous', 'Sarah M.', 'Anonymous', 'Mike T.'],
-        'Lecture': ['Introduction to Derivatives', 'Introduction to Derivatives', 'Limits and Continuity', 'Limits and Continuity'],
-        'Rating': [5, 4, 5, 4],
-        'Comment': [
-            'Great examples! Really helped me understand the concept.',
-            'Could use more practice problems.',
-            'Excellent explanation of limits!',
-            'A bit fast-paced but overall good.'
-        ]
-    })
-    
-    for _, row in feedback_data.iterrows():
-        with st.expander(f"{row['Lecture']} - {row['Student']} ({'⭐' * row['Rating']})"):
-            st.write(row['Comment'])
-            st.caption(f"Submitted on {row['Date']}")
-
-def show_student_dashboard():
-    """Display student learning dashboard"""
-    st.header("👨‍🎓 Student Learning Dashboard")
-    
-    # Student metrics
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown("""
-        <div class="student-metric">
-            <h4>📚 Lectures Attended</h4>
-            <h2>18/20</h2>
-            <p>90% attendance</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="student-metric">
-            <h4>🎯 Understanding Level</h4>
-            <h2>82%</h2>
-            <p>↗️ +7% this month</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="student-metric">
-            <h4>❓ Questions Asked</h4>
-            <h2>12</h2>
-            <p>This semester</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown("""
-        <div class="student-metric">
-            <h4>📈 Progress Score</h4>
-            <h2>B+</h2>
-            <p>Current grade</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Learning progress
-    st.subheader("📈 Your Learning Progress")
-    
-    # Progress by topic
-    topics = ['Basic Functions', 'Limits', 'Derivatives', 'Chain Rule', 'Applications']
-    understanding = [95, 88, 78, 65, 45]
-    
-    fig = px.bar(x=topics, y=understanding, title="Understanding by Topic (%)",
-                 color=understanding, color_continuous_scale='RdYlGn')
-    st.plotly_chart(fig, use_container_width=True)
-
-def show_lecture_review():
-    """Display lecture review and materials"""
-    st.header("📖 Lecture Review")
-    
-    lecture_list = [
-        "Introduction to Derivatives - Sept 18",
-        "Limits and Continuity - Sept 15",
-        "Function Graphs - Sept 13",
-        "Polynomial Functions - Sept 11"
-    ]
-    
-    selected = st.selectbox("Select a lecture to review:", lecture_list)
-    
-    if selected:
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.subheader("📝 Lecture Summary")
-            st.write("**Key Concepts Covered:**")
-            st.write("• Definition of derivatives")
-            st.write("• Geometric interpretation")
-            st.write("• Basic derivative rules")
-            st.write("• Real-world applications")
-            
-            st.subheader("🎯 Learning Objectives")
-            st.write("By the end of this lecture, you should be able to:")
-            st.write("1. Define what a derivative represents")
-            st.write("2. Calculate basic derivatives using rules")
-            st.write("3. Apply derivatives to solve real problems")
-            
-        with col2:
-            st.subheader("📊 Your Performance")
-            st.metric("Comprehension Score", "78%", "↗️ +5%")
-            st.metric("Engagement Level", "High", "🎯")
-            st.metric("Questions Asked", "2", "💭")
-            
-            if st.button("📝 Take Quick Quiz"):
-                st.info("Quiz feature coming soon!")
-
-def show_study_materials():
-    """Display study materials and resources"""
-    st.header("📚 Study Materials")
-    
-    tab1, tab2, tab3 = st.tabs(["📄 Transcripts", "🖼️ Slides", "📎 Resources"])
-    
-    with tab1:
-        st.subheader("Lecture Transcripts")
-        for lecture in ["Introduction to Derivatives", "Limits and Continuity", "Function Graphs"]:
-            with st.expander(f"📄 {lecture}"):
-                st.write("Transcript preview...")
-                st.download_button(f"Download {lecture} transcript", "transcript_content", f"{lecture}.txt")
-    
-    with tab2:
-        st.subheader("Lecture Slides")
-        for lecture in ["Introduction to Derivatives", "Limits and Continuity", "Function Graphs"]:
-            with st.expander(f"🖼️ {lecture}"):
-                st.write("Slide preview...")
-                st.download_button(f"Download {lecture} slides", "slides_content", f"{lecture}.pdf")
-    
-    with tab3:
-        st.subheader("Additional Resources")
-        st.write("📖 Recommended readings")
-        st.write("🎥 Video tutorials")
-        st.write("💻 Practice problems")
-
-def show_progress_tracking():
-    """Display student progress tracking"""
-    st.header("📈 Progress Tracking")
-    
-    # Weekly progress
-    weeks = list(range(1, 11))
-    scores = [65, 70, 68, 75, 78, 82, 85, 83, 88, 85]
-    
-    fig = px.line(x=weeks, y=scores, title="Weekly Progress Scores",
-                  markers=True, labels={'x': 'Week', 'y': 'Score (%)'})
-    st.plotly_chart(fig, use_container_width=True)
-
-def show_school_overview():
-    """Display school-wide overview for administrators"""
-    st.header("🏫 School Overview")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Total Teachers", "45", "↗️ +3 this year")
-    
-    with col2:
-        st.metric("Total Students", "1,250", "↗️ +50 this year")
-    
-    with col3:
-        st.metric("Average Teaching Score", "8.4/10", "↗️ +0.2")
-    
-    with col4:
-        st.metric("Student Satisfaction", "87%", "↗️ +3%")
-
-def show_teacher_analytics():
-    """Display teacher analytics for administrators"""
-    st.header("👨‍🏫 Teacher Analytics")
-    
-    # Sample teacher performance data
-    teachers = ['Dr. Smith', 'Prof. Johnson', 'Ms. Davis', 'Mr. Wilson', 'Dr. Brown']
-    scores = [8.7, 8.5, 9.1, 8.2, 8.8]
-    
-    fig = px.bar(x=teachers, y=scores, title="Teacher Performance Scores")
-    st.plotly_chart(fig, use_container_width=True)
-
-def show_student_performance():
-    """Display student performance analytics"""
-    st.header("📊 Student Performance Analytics")
-    
-    # Grade distribution
-    grades = ['A', 'B', 'C', 'D', 'F']
-    counts = [45, 78, 65, 23, 8]
-    
-    fig = px.pie(values=counts, names=grades, title="Grade Distribution")
-    st.plotly_chart(fig, use_container_width=True)
-
-def show_system_management():
-    """Display system management interface"""
-    st.header("⚙️ System Management")
-    
-    st.subheader("📊 System Statistics")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Total Lectures Processed", "1,247", "This semester")
-    
-    with col2:
-        st.metric("Storage Used", "2.3 TB", "67% of capacity")
-    
-    with col3:
-        st.metric("System Uptime", "99.8%", "Last 30 days")
 
 def main():
-    """Main application function"""
+    """Main application function for Principal Dashboard"""
     
     # Header
-    st.markdown('<h1 class="main-header">🎓 VirtuLearn - Educational Analytics Platform</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🎓 VirtuLearn - Principal Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #666;">Lecture Quality Evaluation & Analytics System</p>', unsafe_allow_html=True)
     
     # Sidebar
     with st.sidebar:
-        st.title("Navigation")
+        st.title("🏫 Principal Navigation")
         
-        # User role selection
-        user_role = st.selectbox(
-            "Select Your Role:",
-            ["👨‍🏫 Teacher", "👨‍🎓 Student", "👨‍💼 Administrator"]
-        )
-        
-        # User identification
-        if user_role == "👨‍🏫 Teacher":
-            teacher_name = st.text_input("Teacher Name:", value="Dr. Smith")
-            subject = st.selectbox("Subject:", ["Mathematics", "Physics", "Chemistry", "Biology", "Computer Science", "Literature", "History"])
-            st.write(f"Welcome, {teacher_name}! 👋")
-        elif user_role == "👨‍🎓 Student":
-            student_name = st.text_input("Student Name:", value="Alex Johnson")
-            grade_level = st.selectbox("Grade Level:", ["9th Grade", "10th Grade", "11th Grade", "12th Grade", "Undergraduate", "Graduate"])
-            st.write(f"Welcome, {student_name}! 👋")
-        else:
-            admin_name = st.text_input("Administrator Name:", value="Principal Davis")
-            st.write(f"Welcome, {admin_name}! 👋")
+        # Principal identification
+        principal_name = st.text_input("Principal Name:", value="Dr. Patricia Williams")
+        school_name = st.text_input("School Name:", value="Lincoln High School")
+        st.write(f"Welcome, {principal_name}! 👋")
+        st.write(f"🏫 {school_name}")
         
         # Date range for analysis
         st.subheader("📅 Analysis Period")
@@ -704,51 +530,44 @@ def main():
             max_value=datetime.now().date()
         )
         
-        # Mode selection based on user role
-        if user_role == "👨‍🏫 Teacher":
-            mode = st.selectbox(
-                "Choose Mode:",
-                ["Upload Lecture", "Performance Dashboard", "Lecture Analysis", "Student Feedback"]
-            )
-        elif user_role == "👨‍🎓 Student":
-            mode = st.selectbox(
-                "Choose Mode:",
-                ["Learning Dashboard", "Lecture Review", "Study Materials", "Progress Tracking"]
-            )
-        else:
-            mode = st.selectbox(
-                "Choose Mode:",
-                ["School Overview", "Teacher Analytics", "Student Performance", "System Management"]
-            )
+        # Mode selection for principal
+        mode = st.selectbox(
+            "Choose Function:",
+            ["📚 Evaluate Lectures", "📈 Analytics Dashboard", "👨‍🏫 Teacher Performance", "⚙️ System Settings"]
+        )
+        
+        # Quick stats
+        st.subheader("📊 Quick Stats")
+        st.metric("Total Evaluations", "127", "↗️ +12 this week")
+        st.metric("Average Score", "78.4", "↗️ +2.3 this month")
+        st.metric("Active Teachers", "24", "🏫 School-wide")
     
-    # Main content area based on user role and mode
-    if user_role == "👨‍🏫 Teacher":
-        if mode == "Upload Lecture":
-            show_lecture_upload(teacher_name, subject)
-        elif mode == "Performance Dashboard":
-            show_teacher_dashboard(teacher_name)
-        elif mode == "Lecture Analysis":
-            show_lecture_analysis(teacher_name)
-        else:
-            show_student_feedback()
-    elif user_role == "👨‍🎓 Student":
-        if mode == "Learning Dashboard":
-            show_student_dashboard()
-        elif mode == "Lecture Review":
-            show_lecture_review()
-        elif mode == "Study Materials":
-            show_study_materials()
-        else:
-            show_progress_tracking()
-    else:  # Administrator
-        if mode == "School Overview":
-            show_school_overview()
-        elif mode == "Teacher Analytics":
-            show_teacher_analytics()
-        elif mode == "Student Performance":
-            show_student_performance()
-        else:
-            show_system_management()
+    # Main content area
+    if mode == "📚 Evaluate Lectures":
+        show_lecture_upload()
+    elif mode == "📈 Analytics Dashboard":
+        show_analytics_dashboard()
+    elif mode == "👨‍🏫 Teacher Performance":
+        show_teacher_performance()
+    else:  # System Settings
+        st.header("⚙️ System Settings")
+        st.subheader("📊 System Statistics")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total Evaluations", "127", "This semester")
+        
+        with col2:
+            st.metric("Storage Used", "1.2 GB", "45% of capacity")
+        
+        with col3:
+            st.metric("System Uptime", "99.9%", "Last 30 days")
+        
+        st.subheader("🔧 Configuration")
+        st.checkbox("Enable automatic evaluation reminders", value=True)
+        st.checkbox("Send weekly analytics reports", value=True)
+        st.selectbox("Evaluation frequency:", ["Weekly", "Bi-weekly", "Monthly"])
 
 if __name__ == "__main__":
     main()
+

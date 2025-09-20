@@ -488,3 +488,240 @@ class MongoDBDataManager:
         except Exception as e:
             logger.error(f"Error retrieving lecture materials: {e}")
             return []
+    
+    def store_evaluation(self, evaluation_data: Dict[str, Any]) -> str:
+        """Store lecture evaluation results"""
+        try:
+            # Add unique evaluation ID
+            eval_id = f"eval_{int(datetime.now().timestamp())}_{hashlib.md5(str(evaluation_data).encode()).hexdigest()[:8]}"
+            evaluation_data['evaluation_id'] = eval_id
+            evaluation_data['created_at'] = datetime.now()
+            
+            # Store in evaluations collection
+            self.db.evaluations.insert_one(evaluation_data)
+            
+            # Update teacher performance history
+            self._update_teacher_performance(evaluation_data)
+            
+            logger.info(f"Evaluation stored successfully: {eval_id}")
+            return eval_id
+        except Exception as e:
+            logger.error(f"Error storing evaluation: {e}")
+            raise
+    
+    def _update_teacher_performance(self, evaluation_data: Dict[str, Any]):
+        """Update teacher performance history"""
+        try:
+            teacher_name = evaluation_data.get('teacher_name')
+            if not teacher_name:
+                return
+            
+            performance_entry = {
+                'teacher_name': teacher_name,
+                'evaluation_id': evaluation_data.get('evaluation_id'),
+                'lecture_id': evaluation_data.get('lecture_id'),
+                'course_code': evaluation_data.get('course_code'),
+                'evaluation_score': evaluation_data.get('evaluation_score'),
+                'score_breakdown': evaluation_data.get('score_breakdown'),
+                'evaluation_date': evaluation_data.get('evaluation_timestamp', datetime.now()),
+                'created_at': datetime.now()
+            }
+            
+            self.db.teacher_performance.insert_one(performance_entry)
+            
+        except Exception as e:
+            logger.error(f"Error updating teacher performance: {e}")
+    
+    def get_evaluations_by_teacher(self, teacher_name: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Get all evaluations for a specific teacher"""
+        try:
+            query = {'teacher_name': teacher_name}
+            cursor = self.db.evaluations.find(query, {'_id': 0}).sort('evaluation_timestamp', -1)
+            
+            if limit:
+                cursor = cursor.limit(limit)
+            
+            evaluations = list(cursor)
+            return evaluations
+        except Exception as e:
+            logger.error(f"Error getting evaluations for teacher {teacher_name}: {e}")
+            return []
+    
+    def get_school_analytics(self) -> Dict[str, Any]:
+        """Get comprehensive school-wide analytics"""
+        try:
+            # Get all evaluations
+            all_evaluations = list(self.db.evaluations.find({}, {'_id': 0}))
+            
+            if not all_evaluations:
+                return {
+                    'total_evaluations': 0,
+                    'average_score': 0,
+                    'total_teachers': 0,
+                    'total_courses': 0,
+                    'score_distribution': {'excellent': 0, 'good': 0, 'needs_improvement': 0},
+                    'last_updated': datetime.now().isoformat()
+                }
+            
+            # Calculate metrics
+            scores = [eval_data.get('evaluation_score', 0) for eval_data in all_evaluations]
+            teachers = set([eval_data.get('teacher_name') for eval_data in all_evaluations if eval_data.get('teacher_name')])
+            courses = set([eval_data.get('course_code') for eval_data in all_evaluations if eval_data.get('course_code')])
+            
+            # Score distribution
+            excellent = len([s for s in scores if s >= 85])
+            good = len([s for s in scores if 70 <= s < 85])
+            needs_improvement = len([s for s in scores if s < 70])
+            
+            # Department analytics
+            dept_analytics = self._calculate_department_analytics(all_evaluations)
+            
+            # Trend analysis
+            trend_data = self._calculate_trend_analytics(all_evaluations)
+            
+            return {
+                'total_evaluations': len(all_evaluations),
+                'average_score': round(sum(scores) / len(scores), 1) if scores else 0,
+                'total_teachers': len(teachers),
+                'total_courses': len(courses),
+                'score_distribution': {
+                    'excellent': excellent,
+                    'good': good,
+                    'needs_improvement': needs_improvement
+                },
+                'department_analytics': dept_analytics,
+                'trend_data': trend_data,
+                'last_updated': datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error calculating school analytics: {e}")
+            return {}
+    
+    def _calculate_department_analytics(self, evaluations: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Calculate department-wise analytics"""
+        try:
+            dept_data = {}
+            for eval_data in evaluations:
+                course_code = eval_data.get('course_code', '')
+                if not course_code:
+                    continue
+                
+                # Extract department from course code (e.g., MATH101 -> MATH)
+                dept = ''.join([c for c in course_code if c.isalpha()])
+                if not dept:
+                    dept = 'OTHER'
+                
+                if dept not in dept_data:
+                    dept_data[dept] = {
+                        'scores': [],
+                        'teachers': set(),
+                        'courses': set()
+                    }
+                
+                dept_data[dept]['scores'].append(eval_data.get('evaluation_score', 0))
+                dept_data[dept]['teachers'].add(eval_data.get('teacher_name', ''))
+                dept_data[dept]['courses'].add(course_code)
+            
+            # Calculate averages
+            result = {}
+            for dept, data in dept_data.items():
+                result[dept] = {
+                    'average_score': round(sum(data['scores']) / len(data['scores']), 1) if data['scores'] else 0,
+                    'total_teachers': len(data['teachers']),
+                    'total_courses': len(data['courses']),
+                    'total_evaluations': len(data['scores'])
+                }
+            
+            return result
+        except Exception as e:
+            logger.error(f"Error calculating department analytics: {e}")
+            return {}
+    
+    def _calculate_trend_analytics(self, evaluations: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Calculate trend analytics over time"""
+        try:
+            # Sort evaluations by date
+            sorted_evals = sorted(evaluations, key=lambda x: x.get('evaluation_timestamp', datetime.now()))
+            
+            # Group by month
+            monthly_data = {}
+            for eval_data in sorted_evals:
+                eval_date = eval_data.get('evaluation_timestamp')
+                if isinstance(eval_date, str):
+                    eval_date = datetime.fromisoformat(eval_date.replace('Z', '+00:00'))
+                elif not isinstance(eval_date, datetime):
+                    eval_date = datetime.now()
+                
+                month_key = eval_date.strftime('%Y-%m')
+                
+                if month_key not in monthly_data:
+                    monthly_data[month_key] = {
+                        'scores': [],
+                        'count': 0
+                    }
+                
+                monthly_data[month_key]['scores'].append(eval_data.get('evaluation_score', 0))
+                monthly_data[month_key]['count'] += 1
+            
+            # Calculate monthly averages
+            trend_points = []
+            for month, data in sorted(monthly_data.items()):
+                avg_score = sum(data['scores']) / len(data['scores']) if data['scores'] else 0
+                trend_points.append({
+                    'month': month,
+                    'average_score': round(avg_score, 1),
+                    'evaluation_count': data['count']
+                })
+            
+            return {
+                'monthly_trends': trend_points,
+                'overall_trend': 'improving' if len(trend_points) >= 2 and trend_points[-1]['average_score'] > trend_points[0]['average_score'] else 'stable',
+                'last_month_score': trend_points[-1]['average_score'] if trend_points else 0
+            }
+        except Exception as e:
+            logger.error(f"Error calculating trend analytics: {e}")
+            return {}
+    
+    def update_analytics_trend(self, evaluation_data: Dict[str, Any]):
+        """Update analytics trends with new evaluation"""
+        try:
+            # Store in analytics_trends collection for time-series analysis
+            trend_entry = {
+                'date': evaluation_data.get('evaluation_timestamp', datetime.now()),
+                'score': evaluation_data.get('evaluation_score'),
+                'teacher': evaluation_data.get('teacher_name'),
+                'course': evaluation_data.get('course_code'),
+                'department': ''.join([c for c in evaluation_data.get('course_code', '') if c.isalpha()]),
+                'score_breakdown': evaluation_data.get('score_breakdown'),
+                'created_at': datetime.now()
+            }
+            
+            self.db.analytics_trends.insert_one(trend_entry)
+            
+            # Update real-time analytics summary
+            self._update_analytics_summary()
+            
+        except Exception as e:
+            logger.error(f"Error updating analytics trend: {e}")
+    
+    def _update_analytics_summary(self):
+        """Update cached analytics summary for faster access"""
+        try:
+            # Calculate current metrics
+            analytics = self.get_school_analytics()
+            
+            # Store/update in analytics_summary collection
+            summary_doc = {
+                'type': 'school_summary',
+                'data': analytics,
+                'last_updated': datetime.now()
+            }
+            
+            self.db.analytics_summary.replace_one(
+                {'type': 'school_summary'},
+                summary_doc,
+                upsert=True
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating analytics summary: {e}")

@@ -542,6 +542,188 @@ class LectureDataManager:
             ] if l and l.get('course_code')])),
             'last_calculated': datetime.now().isoformat()
         }
+    
+    def store_evaluation(self, evaluation_data):
+        """Store lecture evaluation results with scores and analytics"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                # Store in MongoDB evaluations collection
+                eval_id = self.db_manager.store_evaluation(evaluation_data)
+                
+                # Update analytics with new evaluation
+                self.update_analytics_with_evaluation(evaluation_data)
+                
+                return eval_id
+            except Exception as e:
+                print(f"Error storing evaluation in MongoDB: {e}")
+                return self._store_evaluation_locally(evaluation_data)
+        else:
+            return self._store_evaluation_locally(evaluation_data)
+    
+    def _store_evaluation_locally(self, evaluation_data):
+        """Store evaluation locally as fallback"""
+        try:
+            eval_id = f"eval_{int(datetime.now().timestamp())}"
+            eval_file = os.path.join(self.data_dir, 'analytics', f'{eval_id}.json')
+            
+            evaluation_data['evaluation_id'] = eval_id
+            
+            with open(eval_file, 'w') as f:
+                json.dump(evaluation_data, f, indent=2, default=str)
+            
+            return eval_id
+        except Exception as e:
+            print(f"Error storing evaluation locally: {e}")
+            return None
+    
+    def get_evaluations_by_teacher(self, teacher_name, limit=None):
+        """Get all evaluations for a specific teacher"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                return self.db_manager.get_evaluations_by_teacher(teacher_name, limit)
+            except Exception as e:
+                print(f"Error getting evaluations from MongoDB: {e}")
+                return self._get_evaluations_locally(teacher_name, limit)
+        else:
+            return self._get_evaluations_locally(teacher_name, limit)
+    
+    def _get_evaluations_locally(self, teacher_name, limit=None):
+        """Get evaluations from local storage"""
+        try:
+            analytics_dir = os.path.join(self.data_dir, 'analytics')
+            if not os.path.exists(analytics_dir):
+                return []
+            
+            evaluations = []
+            for filename in os.listdir(analytics_dir):
+                if filename.startswith('eval_') and filename.endswith('.json'):
+                    try:
+                        with open(os.path.join(analytics_dir, filename), 'r') as f:
+                            eval_data = json.load(f)
+                            if eval_data.get('teacher_name') == teacher_name:
+                                evaluations.append(eval_data)
+                    except Exception as e:
+                        print(f"Error reading evaluation file {filename}: {e}")
+                        continue
+            
+            # Sort by evaluation timestamp (newest first)
+            evaluations.sort(key=lambda x: x.get('evaluation_timestamp', ''), reverse=True)
+            
+            if limit:
+                evaluations = evaluations[:limit]
+                
+            return evaluations
+        except Exception as e:
+            print(f"Error getting local evaluations: {e}")
+            return []
+    
+    def get_school_analytics(self):
+        """Get school-wide analytics from all evaluations"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                return self.db_manager.get_school_analytics()
+            except Exception as e:
+                print(f"Error getting analytics from MongoDB: {e}")
+                return self._get_school_analytics_locally()
+        else:
+            return self._get_school_analytics_locally()
+    
+    def _get_school_analytics_locally(self):
+        """Calculate school analytics from local evaluations"""
+        try:
+            analytics_dir = os.path.join(self.data_dir, 'analytics')
+            if not os.path.exists(analytics_dir):
+                return {}
+            
+            all_evaluations = []
+            for filename in os.listdir(analytics_dir):
+                if filename.startswith('eval_') and filename.endswith('.json'):
+                    try:
+                        with open(os.path.join(analytics_dir, filename), 'r') as f:
+                            eval_data = json.load(f)
+                            all_evaluations.append(eval_data)
+                    except Exception as e:
+                        continue
+            
+            if not all_evaluations:
+                return {}
+            
+            # Calculate aggregated metrics
+            scores = [eval_data.get('evaluation_score', 0) for eval_data in all_evaluations]
+            teachers = set([eval_data.get('teacher_name') for eval_data in all_evaluations if eval_data.get('teacher_name')])
+            courses = set([eval_data.get('course_code') for eval_data in all_evaluations if eval_data.get('course_code')])
+            
+            return {
+                'total_evaluations': len(all_evaluations),
+                'average_score': round(np.mean(scores), 1) if scores else 0,
+                'total_teachers': len(teachers),
+                'total_courses': len(courses),
+                'score_distribution': {
+                    'excellent': len([s for s in scores if s >= 85]),
+                    'good': len([s for s in scores if 70 <= s < 85]),
+                    'needs_improvement': len([s for s in scores if s < 70])
+                },
+                'last_updated': datetime.now().isoformat()
+            }
+        except Exception as e:
+            print(f"Error calculating school analytics: {e}")
+            return {}
+    
+    def update_analytics_with_evaluation(self, evaluation_data):
+        """Update time-based analytics when new evaluation is added"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                # Update analytics in MongoDB
+                self.db_manager.update_analytics_trend(evaluation_data)
+            except Exception as e:
+                print(f"Error updating analytics in MongoDB: {e}")
+        
+        # Always update local analytics for fallback
+        try:
+            analytics_file = os.path.join(self.data_dir, 'analytics', 'trends.json')
+            
+            # Load existing trends or create new
+            if os.path.exists(analytics_file):
+                with open(analytics_file, 'r') as f:
+                    trends = json.load(f)
+            else:
+                trends = {
+                    'score_trends': [],
+                    'teacher_improvements': {},
+                    'department_trends': {},
+                    'last_updated': datetime.now().isoformat()
+                }
+            
+            # Add new data point
+            new_point = {
+                'date': evaluation_data.get('evaluation_timestamp', datetime.now().isoformat()),
+                'score': evaluation_data.get('evaluation_score', 0),
+                'teacher': evaluation_data.get('teacher_name'),
+                'course': evaluation_data.get('course_code')
+            }
+            trends['score_trends'].append(new_point)
+            
+            # Update teacher improvement tracking
+            teacher = evaluation_data.get('teacher_name')
+            if teacher:
+                if teacher not in trends['teacher_improvements']:
+                    trends['teacher_improvements'][teacher] = []
+                trends['teacher_improvements'][teacher].append({
+                    'date': new_point['date'],
+                    'score': new_point['score']
+                })
+                
+                # Keep only last 20 evaluations per teacher
+                trends['teacher_improvements'][teacher] = trends['teacher_improvements'][teacher][-20:]
+            
+            trends['last_updated'] = datetime.now().isoformat()
+            
+            # Save updated trends
+            with open(analytics_file, 'w') as f:
+                json.dump(trends, f, indent=2, default=str)
+                
+        except Exception as e:
+            print(f"Error updating local analytics: {e}")
 
 
 # Global instance
