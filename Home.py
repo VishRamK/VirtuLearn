@@ -4,13 +4,20 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, date
-import os
 from dotenv import load_dotenv
 import io
 import json
 
+# Import data manager
+from utils.data_manager import LectureDataManager
+
 # Load environment variables
 load_dotenv()
+
+# Initialize data manager
+@st.cache_resource
+def get_data_manager():
+    return LectureDataManager(use_mongodb=True)
 
 # Page configuration
 st.set_page_config(
@@ -74,92 +81,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def main():
-    """Main application function"""
-    
-    # Header
-    st.markdown('<h1 class="main-header">🎓 VirtuLearn - Educational Analytics Platform</h1>', unsafe_allow_html=True)
-    
-    # Sidebar
-    with st.sidebar:
-        st.title("Navigation")
-        
-        # User role selection
-        user_role = st.selectbox(
-            "Select Your Role:",
-            ["👨‍🏫 Teacher", "👨‍🎓 Student", "👨‍💼 Administrator"]
-        )
-        
-        # User identification
-        if user_role == "👨‍🏫 Teacher":
-            teacher_name = st.text_input("Teacher Name:", value="Dr. Smith")
-            subject = st.selectbox("Subject:", ["Mathematics", "Physics", "Chemistry", "Biology", "Computer Science", "Literature", "History"])
-            st.write(f"Welcome, {teacher_name}! 👋")
-        elif user_role == "👨‍🎓 Student":
-            student_name = st.text_input("Student Name:", value="Alex Johnson")
-            grade_level = st.selectbox("Grade Level:", ["9th Grade", "10th Grade", "11th Grade", "12th Grade", "Undergraduate", "Graduate"])
-            st.write(f"Welcome, {student_name}! 👋")
-        else:
-            admin_name = st.text_input("Administrator Name:", value="Principal Davis")
-            st.write(f"Welcome, {admin_name}! 👋")
-        
-        # Date range for analysis
-        st.subheader("📅 Analysis Period")
-        date_range = st.date_input(
-            "Select Date Range:",
-            value=(datetime.now().date() - pd.Timedelta(days=30), datetime.now().date()),
-            max_value=datetime.now().date()
-        )
-        
-        # Mode selection based on user role
-        if user_role == "👨‍🏫 Teacher":
-            mode = st.selectbox(
-                "Choose Mode:",
-                ["Upload Lecture", "Performance Dashboard", "Lecture Analysis", "Student Feedback"]
-            )
-        elif user_role == "👨‍🎓 Student":
-            mode = st.selectbox(
-                "Choose Mode:",
-                ["Learning Dashboard", "Lecture Review", "Study Materials", "Progress Tracking"]
-            )
-        else:
-            mode = st.selectbox(
-                "Choose Mode:",
-                ["School Overview", "Teacher Analytics", "Student Performance", "System Management"]
-            )
-    
-    # Main content area based on user role and mode
-    if user_role == "👨‍🏫 Teacher":
-        if mode == "Upload Lecture":
-            show_lecture_upload()
-        elif mode == "Performance Dashboard":
-            show_teacher_dashboard()
-        elif mode == "Lecture Analysis":
-            show_lecture_analysis()
-        else:
-            show_student_feedback()
-    elif user_role == "👨‍🎓 Student":
-        if mode == "Learning Dashboard":
-            show_student_dashboard()
-        elif mode == "Lecture Review":
-            show_lecture_review()
-        elif mode == "Study Materials":
-            show_study_materials()
-        else:
-            show_progress_tracking()
-    else:  # Administrator
-        if mode == "School Overview":
-            show_school_overview()
-        elif mode == "Teacher Analytics":
-            show_teacher_analytics()
-        elif mode == "Student Performance":
-            show_student_performance()
-        else:
-            show_system_management()
-
-def show_lecture_upload():
+def show_lecture_upload(teacher_name="Dr. Smith", subject="Mathematics"):
     """Display lecture upload interface for teachers"""
-    st.header("� Upload Lecture Materials")
+    st.header("📚 Upload Lecture Materials")
     
     st.markdown("""
     <div class="upload-section">
@@ -217,32 +141,107 @@ def show_lecture_upload():
     if st.button("🚀 Analyze Lecture Content", type="primary"):
         if transcript_file and lecture_title:
             with st.spinner("Analyzing lecture content..."):
-                # Simulate analysis
-                st.success("✅ Lecture uploaded and analyzed successfully!")
-                
-                # Show analysis preview
-                st.subheader("📊 Quick Analysis Preview")
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.metric("Word Count", "2,847", "↗️ Above average")
-                
-                with col2:
-                    st.metric("Readability Score", "7.2/10", "✅ Appropriate")
-                
-                with col3:
-                    st.metric("Engagement Level", "85%", "↗️ High")
-                
-                with col4:
-                    st.metric("Concept Density", "12 concepts", "📚 Rich content")
-                
-                st.info("📈 Full analysis available in Performance Dashboard")
+                try:
+                    # Get data manager
+                    data_manager = get_data_manager()
+                    
+                    # Process transcript file
+                    transcript_text = ""
+                    if transcript_file.type == "text/plain":
+                        transcript_text = str(transcript_file.read(), "utf-8")
+                    elif transcript_file.type == "application/pdf":
+                        st.warning("PDF processing requires additional libraries. Please upload as .txt for now.")
+                        return
+                    else:
+                        transcript_text = str(transcript_file.read(), "utf-8")
+                    
+                    # Extract topics and objectives
+                    topics_list = [topic.strip() for topic in topics_covered.split(",")] if topics_covered else []
+                    objectives_list = [obj.strip() for obj in learning_objectives.split(",")] if learning_objectives else []
+                    
+                    # Create lecture entry in database
+                    lecture_id = data_manager.create_lecture_entry(
+                        title=lecture_title,
+                        teacher_id=teacher_name,  # Using teacher name as ID for demo
+                        course_code=course_code,
+                        date=lecture_date,
+                        transcript_text=transcript_text,
+                        duration=int(duration) if duration else None,
+                        topics=topics_list,
+                        objectives=objectives_list
+                    )
+                    
+                    # Store additional files if uploaded
+                    if slides_file:
+                        file_id = data_manager.store_uploaded_file(
+                            lecture_id=lecture_id,
+                            file_content=slides_file.read(),
+                            filename=slides_file.name,
+                            file_type="slides"
+                        )
+                        st.success(f"📊 Slides stored with ID: {file_id}")
+                    
+                    if materials_files:
+                        for material_file in materials_files:
+                            file_id = data_manager.store_uploaded_file(
+                                lecture_id=lecture_id,
+                                file_content=material_file.read(),
+                                filename=material_file.name,
+                                file_type="material"
+                            )
+                        st.success(f"📎 {len(materials_files)} additional materials stored")
+                    
+                    if media_file:
+                        file_id = data_manager.store_uploaded_file(
+                            lecture_id=lecture_id,
+                            file_content=media_file.read(),
+                            filename=media_file.name,
+                            file_type="media"
+                        )
+                        st.success(f"🎥 Media file stored with ID: {file_id}")
+                    
+                    # Get analysis results from database
+                    lecture_data = data_manager.load_lecture_data(lecture_id, 'metadata')
+                    
+                    st.success(f"✅ Lecture uploaded and analyzed successfully! Lecture ID: {lecture_id}")
+                    
+                    # Show analysis preview
+                    st.subheader("📊 Quick Analysis Preview")
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        word_count = lecture_data.get('word_count', 0) if lecture_data else 0
+                        st.metric("Word Count", f"{word_count:,}", "📝 Analyzed")
+                    
+                    with col2:
+                        readability = lecture_data.get('readability_score', 0) if lecture_data else 0
+                        st.metric("Readability Score", f"{readability}/100", "✅ Measured")
+                    
+                    with col3:
+                        engagement = lecture_data.get('estimated_engagement', 0) if lecture_data else 0
+                        st.metric("Engagement Level", f"{engagement}%", "📊 Calculated")
+                    
+                    with col4:
+                        topics_count = len(topics_list) if topics_list else 0
+                        st.metric("Topics Covered", f"{topics_count} topics", "📚 Catalogued")
+                    
+                    st.info("📈 Full analysis available in Performance Dashboard")
+                    
+                    # Display storage status
+                    if data_manager.use_mongodb:
+                        st.success("💾 All data stored in MongoDB cloud database")
+                    else:
+                        st.warning("💾 Data stored locally (MongoDB connection failed)")
+                    
+                except Exception as e:
+                    st.error(f"❌ Error processing lecture: {str(e)}")
+                    st.exception(e)
         else:
             st.error("Please provide at least a lecture title and transcript file.")
 
-def show_teacher_dashboard():
+def show_teacher_dashboard(teacher_name="Dr. Smith"):
     """Display teacher performance dashboard"""
-    st.header("�‍🏫 Teacher Performance Dashboard")
+    st.header("👨‍🏫 Teacher Performance Dashboard")
     
     # Key performance metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -277,7 +276,7 @@ def show_teacher_dashboard():
     with col4:
         st.markdown("""
         <div class="teacher-metric">
-            <h4>� Students Helped</h4>
+            <h4>👥 Students Helped</h4>
             <h2>156</h2>
             <p>🎓 Across all courses</p>
         </div>
@@ -336,7 +335,7 @@ def show_teacher_dashboard():
     })
     st.dataframe(recent_lectures, use_container_width=True, hide_index=True)
 
-def show_lecture_analysis():
+def show_lecture_analysis(teacher_name="Dr. Smith"):
     """Display detailed lecture analysis"""
     st.header("🔍 Lecture Analysis")
     
@@ -461,7 +460,7 @@ def show_student_feedback():
         st.metric("Clarity Score", "8.7/10", "↗️ +0.4")
     
     # Recent feedback
-    st.subheader("� Recent Student Feedback")
+    st.subheader("📝 Recent Student Feedback")
     
     feedback_data = pd.DataFrame({
         'Date': ['2024-09-18', '2024-09-18', '2024-09-15', '2024-09-15'],
@@ -667,6 +666,89 @@ def show_system_management():
     
     with col3:
         st.metric("System Uptime", "99.8%", "Last 30 days")
+
+def main():
+    """Main application function"""
+    
+    # Header
+    st.markdown('<h1 class="main-header">🎓 VirtuLearn - Educational Analytics Platform</h1>', unsafe_allow_html=True)
+    
+    # Sidebar
+    with st.sidebar:
+        st.title("Navigation")
+        
+        # User role selection
+        user_role = st.selectbox(
+            "Select Your Role:",
+            ["👨‍🏫 Teacher", "👨‍🎓 Student", "👨‍💼 Administrator"]
+        )
+        
+        # User identification
+        if user_role == "👨‍🏫 Teacher":
+            teacher_name = st.text_input("Teacher Name:", value="Dr. Smith")
+            subject = st.selectbox("Subject:", ["Mathematics", "Physics", "Chemistry", "Biology", "Computer Science", "Literature", "History"])
+            st.write(f"Welcome, {teacher_name}! 👋")
+        elif user_role == "👨‍🎓 Student":
+            student_name = st.text_input("Student Name:", value="Alex Johnson")
+            grade_level = st.selectbox("Grade Level:", ["9th Grade", "10th Grade", "11th Grade", "12th Grade", "Undergraduate", "Graduate"])
+            st.write(f"Welcome, {student_name}! 👋")
+        else:
+            admin_name = st.text_input("Administrator Name:", value="Principal Davis")
+            st.write(f"Welcome, {admin_name}! 👋")
+        
+        # Date range for analysis
+        st.subheader("📅 Analysis Period")
+        date_range = st.date_input(
+            "Select Date Range:",
+            value=(datetime.now().date() - pd.Timedelta(days=30), datetime.now().date()),
+            max_value=datetime.now().date()
+        )
+        
+        # Mode selection based on user role
+        if user_role == "👨‍🏫 Teacher":
+            mode = st.selectbox(
+                "Choose Mode:",
+                ["Upload Lecture", "Performance Dashboard", "Lecture Analysis", "Student Feedback"]
+            )
+        elif user_role == "👨‍🎓 Student":
+            mode = st.selectbox(
+                "Choose Mode:",
+                ["Learning Dashboard", "Lecture Review", "Study Materials", "Progress Tracking"]
+            )
+        else:
+            mode = st.selectbox(
+                "Choose Mode:",
+                ["School Overview", "Teacher Analytics", "Student Performance", "System Management"]
+            )
+    
+    # Main content area based on user role and mode
+    if user_role == "👨‍🏫 Teacher":
+        if mode == "Upload Lecture":
+            show_lecture_upload(teacher_name, subject)
+        elif mode == "Performance Dashboard":
+            show_teacher_dashboard(teacher_name)
+        elif mode == "Lecture Analysis":
+            show_lecture_analysis(teacher_name)
+        else:
+            show_student_feedback()
+    elif user_role == "👨‍🎓 Student":
+        if mode == "Learning Dashboard":
+            show_student_dashboard()
+        elif mode == "Lecture Review":
+            show_lecture_review()
+        elif mode == "Study Materials":
+            show_study_materials()
+        else:
+            show_progress_tracking()
+    else:  # Administrator
+        if mode == "School Overview":
+            show_school_overview()
+        elif mode == "Teacher Analytics":
+            show_teacher_analytics()
+        elif mode == "Student Performance":
+            show_student_performance()
+        else:
+            show_system_management()
 
 if __name__ == "__main__":
     main()

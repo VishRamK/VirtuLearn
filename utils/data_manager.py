@@ -1,5 +1,5 @@
 """
-Data management utilities for VirtuLearn - Enhanced for lecture analysis
+Data management utilities for VirtuLearn - Enhanced for lecture analysis with MongoDB integration
 """
 
 import pandas as pd
@@ -8,17 +8,32 @@ from datetime import datetime, timedelta
 import json
 import os
 import hashlib
+from .mongodb_manager import MongoDBDataManager
 
 
 class LectureDataManager:
-    """Class to handle lecture data operations for the VirtuLearn app"""
+    """Class to handle lecture data operations for the VirtuLearn app with MongoDB backend"""
     
-    def __init__(self, data_dir="data"):
+    def __init__(self, use_mongodb=True, data_dir="data"):
         self.data_dir = data_dir
-        self.ensure_data_dir()
+        self.use_mongodb = use_mongodb
+        
+        if use_mongodb:
+            try:
+                self.db_manager = MongoDBDataManager()
+                print("✅ Connected to MongoDB successfully")
+            except Exception as e:
+                print(f"❌ MongoDB connection failed: {e}")
+                print("🔄 Falling back to local file storage")
+                self.use_mongodb = False
+                self.db_manager = None
+                self.ensure_data_dir()
+        else:
+            self.db_manager = None
+            self.ensure_data_dir()
     
     def ensure_data_dir(self):
-        """Ensure the data directory exists"""
+        """Ensure the data directory exists (for fallback mode)"""
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
         
@@ -30,7 +45,25 @@ class LectureDataManager:
                 os.makedirs(subdir_path)
     
     def save_lecture_data(self, lecture_id, data, data_type="metadata"):
-        """Save lecture-specific data"""
+        """Save lecture-specific data (with MongoDB integration)"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                # Store in MongoDB
+                if data_type == "metadata":
+                    # Update lecture document
+                    self.db_manager.db.lectures.update_one(
+                        {'lecture_id': lecture_id},
+                        {'$set': data},
+                        upsert=True
+                    )
+                else:
+                    # Store as analytics or materials
+                    self.db_manager.store_analytics(lecture_id, data_type, data)
+                return True
+            except Exception as e:
+                print(f"MongoDB save failed: {e}, falling back to local storage")
+        
+        # Fallback to local file storage
         filepath = os.path.join(self.data_dir, 'lectures', f"{lecture_id}_{data_type}.json")
         
         if isinstance(data, dict):
@@ -42,7 +75,21 @@ class LectureDataManager:
             raise ValueError("Data must be a dictionary")
     
     def load_lecture_data(self, lecture_id, data_type="metadata"):
-        """Load lecture-specific data"""
+        """Load lecture-specific data (with MongoDB integration)"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                if data_type == "metadata":
+                    # Get from lectures collection
+                    lecture = self.db_manager.get_lecture_by_id(lecture_id)
+                    return lecture
+                else:
+                    # Get from analytics collection
+                    analytics = self.db_manager.get_analytics(lecture_id, data_type)
+                    return analytics[0] if analytics else None
+            except Exception as e:
+                print(f"MongoDB load failed: {e}, falling back to local storage")
+        
+        # Fallback to local file storage
         filepath = os.path.join(self.data_dir, 'lectures', f"{lecture_id}_{data_type}.json")
         
         if not os.path.exists(filepath):
@@ -57,7 +104,27 @@ class LectureDataManager:
     
     def create_lecture_entry(self, title, teacher_id, course_code, date, transcript_text=None, 
                            slides_content=None, duration=None, topics=None, objectives=None):
-        """Create a new lecture entry"""
+        """Create a new lecture entry (with MongoDB integration)"""
+        
+        if self.use_mongodb and self.db_manager:
+            try:
+                # Use MongoDB manager
+                lecture_id = self.db_manager.create_lecture_entry(
+                    title=title,
+                    teacher_id=teacher_id,
+                    course_code=course_code,
+                    date=date,
+                    transcript_text=transcript_text,
+                    slides_content=slides_content,
+                    duration=duration,
+                    topics=topics,
+                    objectives=objectives
+                )
+                return lecture_id
+            except Exception as e:
+                print(f"MongoDB create failed: {e}, falling back to local storage")
+        
+        # Fallback to local storage
         
         # Generate unique lecture ID
         lecture_id = hashlib.md5(f"{teacher_id}_{title}_{date}".encode()).hexdigest()[:12]
@@ -97,6 +164,20 @@ class LectureDataManager:
             self.save_lecture_data(lecture_id, lecture_data, 'metadata')
         
         return lecture_id
+    
+    def get_teacher_performance_metrics(self, teacher_id):
+        """Get teacher performance metrics (with MongoDB integration)"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                return self.db_manager.get_teacher_performance_metrics(teacher_id)
+            except Exception as e:
+                print(f"MongoDB metrics failed: {e}, falling back to local calculation")
+        
+        # Fallback to local calculation
+        return self._calculate_local_teacher_metrics(teacher_id)
+    
+    def _calculate_local_teacher_metrics(self, teacher_id):
+        """Calculate teacher metrics from local files"""
     
     def analyze_transcript(self, transcript_text):
         """Analyze transcript text and return metrics"""
@@ -152,8 +233,106 @@ class LectureDataManager:
             'analysis_timestamp': datetime.now().isoformat()
         }
     
+    def _calculate_local_teacher_metrics(self, teacher_id):
+        """Calculate teacher metrics from local files"""
+        lectures = self.get_teacher_lectures(teacher_id)
+        
+        if not lectures:
+            return {
+                'total_lectures': 0,
+                'avg_teaching_score': 0,
+                'avg_engagement': 0,
+                'avg_readability': 0,
+                'improvement_trend': 0
+            }
+        
+        # Calculate averages
+        engagement_scores = [l.get('estimated_engagement', 70) for l in lectures if l.get('estimated_engagement')]
+        readability_scores = [l.get('readability_score', 70) for l in lectures if l.get('readability_score')]
+        word_counts = [l.get('word_count', 0) for l in lectures if l.get('word_count')]
+        
+        avg_engagement = np.mean(engagement_scores) if engagement_scores else 70
+        avg_readability = np.mean(readability_scores) if readability_scores else 70
+        avg_word_count = np.mean(word_counts) if word_counts else 0
+        
+        # Calculate teaching score (composite metric)
+        teaching_score = (avg_engagement * 0.4 + avg_readability * 0.3 + 
+                         min(100, avg_word_count / 30) * 0.3) / 10
+        
+        # Calculate improvement trend (compare recent vs older lectures)
+        if len(lectures) >= 4:
+            recent_engagement = np.mean([l.get('estimated_engagement', 70) for l in lectures[:2]])
+            older_engagement = np.mean([l.get('estimated_engagement', 70) for l in lectures[-2:]])
+            improvement_trend = ((recent_engagement - older_engagement) / older_engagement) * 100
+        else:
+            improvement_trend = 0
+        
+        return {
+            'total_lectures': len(lectures),
+            'avg_teaching_score': round(teaching_score, 1),
+            'avg_engagement': round(avg_engagement, 1),
+            'avg_readability': round(avg_readability, 1),
+            'avg_word_count': round(avg_word_count, 0),
+            'improvement_trend': round(improvement_trend, 1),
+            'last_updated': datetime.now().isoformat()
+        }
+    
+    def get_all_lectures(self, limit=None):
+        """Get all lectures (with MongoDB integration)"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                return self.db_manager.get_all_lectures(limit)
+            except Exception as e:
+                print(f"MongoDB get_all_lectures failed: {e}, falling back to local storage")
+        
+        # Fallback to local storage
+        lectures = []
+        lectures_dir = os.path.join(self.data_dir, 'lectures')
+        
+        if not os.path.exists(lectures_dir):
+            return lectures
+        
+        for filename in os.listdir(lectures_dir):
+            if filename.endswith('_metadata.json'):
+                lecture_data = self.load_lecture_data(filename.replace('_metadata.json', ''), 'metadata')
+                if lecture_data:
+                    lectures.append(lecture_data)
+        
+        # Sort by date (most recent first)
+        lectures.sort(key=lambda x: x.get('date', ''), reverse=True)
+        
+        if limit:
+            lectures = lectures[:limit]
+        
+        return lectures
+    
+    def store_uploaded_file(self, lecture_id, file_content, filename, file_type):
+        """Store uploaded files (with MongoDB integration)"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                return self.db_manager.store_uploaded_file(lecture_id, file_content, filename, file_type)
+            except Exception as e:
+                print(f"MongoDB file storage failed: {e}, falling back to local storage")
+        
+        # Fallback to local storage
+        file_dir = os.path.join(self.data_dir, 'uploads', lecture_id)
+        os.makedirs(file_dir, exist_ok=True)
+        
+        file_path = os.path.join(file_dir, filename)
+        with open(file_path, 'wb') as f:
+            f.write(file_content)
+        
+        return file_path
+    
     def get_teacher_lectures(self, teacher_id, limit=None):
-        """Get all lectures for a specific teacher"""
+        """Get all lectures for a specific teacher (with MongoDB integration)"""
+        if self.use_mongodb and self.db_manager:
+            try:
+                return self.db_manager.get_teacher_lectures(teacher_id, limit)
+            except Exception as e:
+                print(f"MongoDB get_teacher_lectures failed: {e}, falling back to local storage")
+        
+        # Fallback to local storage
         lectures = []
         lectures_dir = os.path.join(self.data_dir, 'lectures')
         

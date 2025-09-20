@@ -87,7 +87,7 @@ with tab1:
     fig = px.bar(filtered_df, x='Teacher', y='Teaching_Score', 
                  color='Teaching_Score', color_continuous_scale='RdYlGn',
                  title="Teaching Effectiveness Scores")
-    fig.update_xaxis(tickangle=45)
+    fig.update_xaxes(tickangle=45)
     fig.add_hline(y=8.5, line_dash="dash", line_color="red", 
                   annotation_text="Target Score (8.5)")
     st.plotly_chart(fig, use_container_width=True)
@@ -106,7 +106,7 @@ with tab3:
     fig.update_layout(title='Teaching Score vs Content Quality Comparison',
                       xaxis_title='Teacher', yaxis_title='Score',
                       barmode='group')
-    fig.update_xaxis(tickangle=45)
+    fig.update_xaxes(tickangle=45)
     st.plotly_chart(fig, use_container_width=True)
 
 # Detailed teacher profiles
