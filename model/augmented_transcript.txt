@@ -1,0 +1,1552 @@
+[Auto-generated transcript. Edits may have been applied for clarity.]
+Yeah, okay. That's all. Um, I think there might be anyone if there's a seat next to you.
+
+Can you raise your hand? Okay. A couple more seats.
+
+There's like, maybe keep them up until someone sits next to you just so these guys can find a seat.
+
+Um, and then also, you guys could grab these chairs if you want to just sit.
+
+On the sides. Yeah.
+
+Of course. Yeah.
+
+I like, left the trash. Yeah. Go for it. Yeah.
+
+Of course. Um, cool.
+
+Okay. Hopefully. I mean. That's at least a start.
+
+Um, I think it's time to get started. Are there any more seats?
+
+Anyone have a seat next to them? No. All right.
+
+Looks like. No. So, yeah, unfortunately, I think the rest of you are going to maybe have to stand.
+
+Um, so welcome to the second lecture of deep learning.
+
+Um, so, uh, this lecture in particular, uh, is one where many of you may have seen this material before.
+
+Um, we're going to be talking a lot about, uh, gradient descent, back propagation.
+
+Um, particularly the first half. Um, but we do think it's important to actually teach this material, almost like,
+
+reteach it through the lens of the notation we're going to use in the way that we like to think about,
+
+uh, reframing these kind of building blocks or components for deep learning.
+
+Um, and then the second half of the lecture, um,
+
+I'll be zooming out a little bit and kind of talking about this meta concept of differential programing and,
+
+and what that kind of means in modern deep learning, how we think about networks that are almost like networks of other networks.
+
+Um, cool. So, uh, first, just a few announcements.
+
+Um, so the first thing is that, uh, the first problem set was released, um, maybe a couple hours ago.
+
+I know it actually did go out, because there's already a bunch of people who have maybe found a typo in it that I saw on slack, so good job, guys.
+
+You guys are super on top of it. Um, and, uh, that problem set will be due on September 23rd.
+
+I'm pretty sure, uh, you actually trust what it says on, uh, on Piazza, uh,
+
+and on the website because now I'm, like, stressed that I put the wrong date here.
+
+I think it's September 23rd. Um, and then also, we do have office hours starting this week.
+
+So, um, I think the professors have been a little late on scheduling our own office hours.
+
+I know, on my side. I'm trying to schedule my meetings with all my grad students and then schedule this on top of it.
+
+So it might take me a couple of days to figure that out. But all of the to office hours have been scheduled.
+
+Um, this time in particular, what we're going to do to help kind of support the demand is we're actually having two Tas for a single office hour spot,
+[STUDENT] (reconstructed, confidence=0.95): Where can we find the lecture readings?
+[EVIDENCE] Oh. Yeah, I don't know.
+
+so they can kind of like move around in the room and sort of try and help people out.
+
+Hopefully this works. Um, what I would say is that go to office hours early, look at your problem sets early and go to office hours early.
+
+Because what we saw consistently in the last few years when there was, you know, half as many students,
+
+is that the few office hours right before the problems that was do get way too full
+
+and then people can't get their questions answered and then people are frustrated.
+[STUDENT] (reconstructed, confidence=1.00): What will be covered on the exam?
+[EVIDENCE] You just from the letters there. The exam material will be on the lectures, readings and problem sets.
+
+The solution is go to the earlier ones when there aren't people showing up, and then you'll get your questions answered.
+
+Um, but yeah, it is really tough and I totally get the frustration, if you like, show up for office hours.
+
+There's 100 people and you, like, have a question and you can't get it answered.
+
+Um, one tactic for that is like while you're waiting, you can discuss with the other people in office hours and maybe try to help each other.
+
+Um, and I and also just remembering that the Tas are people, too.
+
+They're really doing their best. Um, and of course, they're, like, trying to help everyone, but just it's really hard to scale like this.
+
+So we're all, like, trying to figure out how to make it work and how to make it best for you.
+
+Um, and if anyone does have other suggestions or ideas for how we can kind of help with the scale of the course and help make sure that,
+
+like all of you are getting the support you need. We're definitely open to that.
+
+Um, you can post anonymously on Piazza or just like directly to us.
+
+Um, and then of course, also, you're definitely welcome to post questions about problem sets on Piazza as well.
+
+Um, so that's kind of like an async mechanism. Um, and I really appreciate that folks have already been identifying like, potentially,
+
+uh, typos and, you know, helping kind of make sure that everything is, is good to go.
+
+Um, cool. And then, uh, we did start our PyTorch tutorials.
+
+Um, the first one was yesterday. Did anyone go? Anyone go to the PyTorch tutorial?
+
+Nice. How was it helpful? Yeah.
+
+All right. Good. Fingers crossed. Um, there are a couple more.
+
+I know that they were hoping to record the one yesterday, but then there was, like, some AV issues with, like, the sound or something.
+[STUDENT] (reconstructed, confidence=0.85): Can you explain the basic structure of a neural network?
+[EVIDENCE] Cool. So. Um, this is like a very simple version of a neural network, right?
+
+So they're going to try and record one of the later ones this week.
+
+So if you can't join any of the times in person, the recording should be posted on canvas pretty soon.
+
+Okay. Any logistical questions from anyone?
+
+Oh. Yeah, I don't know.
+
+They're on the website as of, uh, earlier today or yesterday.
+
+Um, not for all of the, uh, lectures yet, but basically,
+
+like each week we'll have readings that go along with the lecture material and that will help you prepare for your sets.
+
+Um, and the only reason there weren't lecture readings last week is because I forgot.
+
+Um, but now they're up and they're optional because I forgot.
+[STUDENT] (reconstructed, confidence=0.98): What is gradient descent used for?
+[EVIDENCE] Pretty straightforward. Yeah. So when you talk about gradient descent, this is what we use to find that minimum.
+
+Uh, but thank you. Um, but, yeah, there are readings posted, uh, for today's lecture.
+
+Uh, and it's two different chapters from the, um, the computer vision book that Phil,
+
+um, Bill and Antonio wrote, which is a very good book and is available for free online.
+
+Uh, any other questions? Yeah.
+
+[STUDENT] (reconstructed, confidence=0.90): How do we optimize neural network parameters, and why not brute force?
+[EVIDENCE] So if you think about optimization at a high level you have some set of parameters.
+You just from the letters there. The exam material will be on the lectures, readings and problem sets.
+
+Um, but most of what is. Like the readings just go into like a little bit more explanatory detail of the material that's in the lectures.
+
+Like there's we often don't assign readings that are like completely different topics.
+
+It'll just like sometimes there's certain things that are kind of hard to go through
+
+and slides right where it's easier to just kind of write down all of the math,
+
+um, in, in like our reading format. So, um, yeah.
+
+And again, I'll say this like probably a lot of times, but like it is our first time writing an exam for this course.
+
+I promise we're going to mess it up like we're going to do our best, but like, it's just it's just not going to be perfectly calibrated.
+
+We really appreciate you being understanding and we will be like accordingly, like navigating,
+
+like how we do the grading for the exam to make sure like we're not the goal is not to like make everyone fail the class.
+
+It's just to assess your learning and help you like have a nice forcing function to study.
+
+Right? Um, so yeah, like we will try our best to write a well calibrated, well timed exam.
+
+And I'm just already sure that it's going to be difficult. Um, so bear with us.
+
+I'm sure it'll be better in the future after you're the guinea pigs. So there's that.
+
+Um. Cool. Okay. Any other questions before I get into the material today?
+
+All right. Awesome. So today I'm going to be talking about how we train neural networks.
+
+Like, what does it even mean to train a neural network?
+
+Um, and so we're going to start with a basically a review of gradient descent and stochastic gradient descent SGD.
+
+Um, we're going to talk a bit about computation graphs.
+
+Um, and kind of like what it means to think about computation on graphs and these networks as almost, uh,
+
+sort of you can think of all of them as computation on top of graphs of sort of modular, um, functional components.
+
+Um, we'll introduce, uh, and go into like a little bit more detail of what it looks like to do backprop on chains,
+
+which is a specific type of, uh, graph. Um, and by chains here, like we'll basically talk through this for linear models.
+
+Um. And then, uh, kind of digging into actually multilayer perceptrons.
+
+Um, and what it looks like to actually do backprop through a much more general type of graph, which is like a directed acyclic graph or a Dag.
+
+Um, and I think the cool thing with all of this is really just kind of helping you guys build intuition for how these components, um, both work,
+
+but also how they are implemented and what makes the sort of combination of like
+
+neural networks implemented as basically compositions of matrix multiplications.
+
+How that then parallelize is so well on GPUs.
+
+So it's really just trying to like help you work through thinking about like, okay, you have all of this like nice formal math,
+
+but what does that actually look like in like these simple settings on, um on a GPU.
+
+And then we will talk about differential programing.
+
+It's kind of this like more meta concept of, you know, potentially what deep learning has turned into this idea that.
+
+You can think of neural networks as just graphs of components of functions,
+
+where anything you can optimize anything with respect to anything else, which is really fun, right?
+
+Um, so I'll give some cool examples from, from, uh, recent research.
+
+Um, but also I think it's just like a nice way to kind of open your eyes to how diverse you can think about using some of these components of,
+
+like, what you are training and how you are training it to kind of do, um, whatever you'd like the model to do.
+
+Cool. So. Um, this is like a very simple version of a neural network, right?
+
+So, uh, what we're looking at here is essentially the structure of what deep learning is.
+
+Um, and this is really like, you know, this is one very simple version, right?
+
+We're looking at a supervised model, and here the supervision is, um, we have data.
+
+So in this case the data is images. This beautiful little clownfish.
+
+Um, and then the label is the supervision and that label is clownfish.
+
+So this is in theory here we're trying to build some sort of classifier that can classify things in images.
+
+Um, so you have your data, you have your supervisory signal, your ground truth.
+
+Um, and then what the neural network is, is it's basically just a series of functions, um,
+
+in this case nonlinear functions, because of the activation, um, that you're going to pass that input data through.
+
+Um, and then you're going to get some output. Um, and then what you're doing is you're calculating a loss,
+
+which is essentially just the difference between your predicted output and that supervisory signal or that ground truth.
+
+Right. And so what gets learned when you're training a neural network is essentially all of these arrows.
+
+And these arrows are kind of like the functions. Right. So uh, the parameters of the function.
+
+So if these were all linear,
+
+you could imagine that these are like the parameters of your weighted sums and those linear layers and all of those parameters,
+
+those thetas combined make up what we call like the parameters of the model sort of overall set of what's learned.
+
+And so then when you're actually going through the process of learning, what you're trying to do is you're going to try to figure out like how to.
+
+Shift those parameters around in space. Phil calls it wiggling like you're wiggling them around.
+
+Um, and what you're trying to do is you're trying to find something where for all of the data you care about,
+
+this loss is minimized as much as possible.
+
+Right. And so essentially you can write that as we're trying to find some theta star,
+
+some optimal set of parameters that minimize the loss over all of the different data points in our data set.
+
+Pretty straightforward. Yeah. So when you talk about gradient descent, this is what we use to find that minimum.
+
+It's the process that we actually use to try to find those optimal set of parameters.
+
+Um, and so here for the rest of the lecture, what I'm going to do is I'm going to simplify the notation and the sum over
+
+all the data points of the difference between the loss and the ground truth.
+
+I'm just going to represent as J, which we're just going to call like a cost function.
+
+And so what we're going to try and do is going to find the model that minimizes that cost function.
+
+So if you think about optimization at a high level you have some set of parameters.
+
+Um you have some cost landscape, let's call it J.
+
+So this is like potentially, um, uh, you know, this this determines like what the cost is associated with the set of parameters.
+
+It's just another function. Um, and then you're actually going to sort of if you send in a set of parameters, you can calculate J.
+
+You're able to actually sort of, um, directly calculate it and you can get out what the cost is for a given model.
+
+So what's the knowledge that we have about J. Well first we can evaluate J of theta.
+
+Right. Um and so that's what that's what we're talking about here.
+
+We have the ability to just calculate the cost for a given set of data.
+
+Um, and that evaluation of just J of theta that's called black box optimization.
+
+Um, even if you just have that, you can, through sheer brute force, find an optimal eventually.
+
+Right. You could just try every possible combination of those parameters,
+
+and eventually you would find something that did better than everything else on the data you care about.
+
+That would be really expensive, particularly because these parameters are continuous valued and they are, um, conditionally dependent on each other.
+
+They relate to each other throughout the model. So it would be like a very expensive, um, like brute force search.
+
+And this is where this idea of looking at gradients comes in.
+
+So the other thing that we are able to evaluate for our cost function, assuming it's differentiable,
+
+which is one of the things that we usually try to build into these cost functions,
+
+is we can take the gradient over that cost function with respect to our data, and that gradient is that we call this like first order optimization.
+
+But basically you're if you think of J as like um.
+
+If so, we can evaluate everywhere. Um, if you imagine you've evaluated J everywhere.
+
+You can build what we call a loss landscape, right? It's like basically the shape of the loss.
+
+And so in two dimension this is easy to imagine. It's gonna be like peaks and valleys in more than two dimensions.
+
+It's quite difficult. Let's say you have two parameters. You could evaluate the loss for every combination of those parameters.
+
+You can actually map out the loss landscape. And then you're going to have minimums and maximums.
+
+Now what we're saying is calculating the loss for every single combination of those parameters is expensive.
+
+But by approximating the gradient at any given point, you're basically taking this curve and you're putting a plane,
+
+a planar approximation to it, and that tells you which direction is down.
+
+Essentially, you're just trying to figure out which way to go to get more small if you're minimizing, um,
+
+and so then that first order approximation kind of gives us this nice way to think about moving towards an optimum.
+
+Um. Now, you also could potentially.
+
+Um, actually do even better than taking a linear approximation to the gradient.
+
+You think about taking like what's called the Hessian, the second order approximation.
+
+Um, or that, you know, second order gradient. Um, you can do this.
+
+There's like a Wikipedia page about using gradients on machine learning models.
+
+In practice, it's really complicated to compute,
+
+and it's only really possible to compute efficiently for a couple models because you required to basically invert some pretty big matrices,
+
+which is a very expensive. So usually we don't do it.
+
+Um, usually we just say the first order approximation is totally sufficient and practically, um,
+
+that's proven to be true, at least with sufficient data and reasonably well behaved, um, loss landscapes.
+
+Okay, so this is like a picture of that loss landscape I was talking about.
+
+Right. So say you have okay. So this is our our cost is the vertical dimension.
+
+We can measure that cost for any parameters theta one and theta two any combination of those two things.
+
+And so now when you talk about gradient descent, the idea is that pretty simply you start somewhere.
+
+In this case we got unlucky. We started in almost the worst possible situation where the gloss was very, very high.
+
+Now if we can approximate the gradient, we can figure out which way is down.
+
+Then we can adjust our parameters to move in the direction of that gradient.
+
+[STUDENT] (reconstructed, confidence=0.95): How do we usually choose the batch size?
+[EVIDENCE] Does anyone know what we usually do to choose our batch size? Yeah.
+And then we can iterate over this process again and again and again. And eventually you'll find um minimum.
+
+[STUDENT] (reconstructed, confidence=0.90): How do you pick which batch size to use among the possible options?
+[EVIDENCE] how do you pick which one of those you would want to use?
+Now the complicated part here is that. These loss landscapes are often not convex.
+
+So you're guaranteed to find a minimum, usually.
+
+Um, but it might not be the global minimum, right?
+
+You might not end up actually finding the minimum.
+
+That is kind of the very best model. And so you can actually imagine here.
+
+Right. Like it's basically like you're putting a marble somewhere on this thing and then you're letting it roll down.
+
+The choice of where you put that marble to start with is going to really influence which minimum you find.
+
+And that's one of the reasons that, you know, if you read all these machine learning papers,
+
+they'll take like best of three random seeds or something, or best of ten random seeds.
+[STUDENT] (reconstructed, confidence=1.00): What's the intuition for picking the learning rate?
+[EVIDENCE] Any questions? Yeah. So basically what's the intuition for taking the learning rate? What's the intuition for picking the learning rate? Hi. So my favorite trick is you take the paper that you're trying to replicate and you start
+
+And it's basically just like giving yourself more different points on the graph and then finding the
+
+minimums that you kind of fall into when learning from those points from those like initialization points.
+
+Um, and then if they're being honest, they would take an average over those and look at the standard deviation.
+
+Realistically, often people cherry pick the very best one, which.
+
+Is a whole other can of worms.
+
+[STUDENT] (reconstructed, confidence=0.85): Is stochastic gradient descent related to sampling, like in information theory?
+[EVIDENCE] So for the stochastic gradient descent, uh, with information.
+We'll talk about it in the evaluation lecture at the end, where I have very strong opinions about the right way to evaluate machine learning models.
+
+Um, but so this is like pretty intuitive.
+
+I like this this kind of mental model of like you're just you're you're starting somewhere and then trying to follow in the direction of the gradient.
+
+So. Okay. You could, for example, um, start here and then now you want to find the direction of the gradient.
+
+And one parameter of this process of this algorithm is like, how big of a step do you take?
+
+How far do you go? Right. So I know, for example, that I want to move in this downward direction.
+
+Now I could say I'm going to take a really big step, but you might overshoot, right?
+[STUDENT] (reconstructed, confidence=0.80): Is avoiding class imbalance the reason we try to optimize sampling?
+[EVIDENCE] And that would be the reason for you saying that we try to optimize for the.
+
+You might end up like somewhere where the freak out here and then, you know, okay.
+
+Now what? So that's where essentially this idea of a step size comes in.
+
+So one iteration of gradient descent, you are basically calculating the new parameters of your model,
+
+the parameters that, you know, um, theta of k plus one as the initial parameters plus a step size.
+[STUDENT] (reconstructed, confidence=0.85): Does having a larger batch size become more important further along in training?
+[EVIDENCE] So if you think about it like an optimization problem, you have a very steep part of the.
+
+That's that eta that tells you basically how much you're going to move in any given direction.
+
+Um, that's moving in the direction of the gradient. And that's what we call the learning rate.
+
+And this is one of the many handcrafted hyperparameters that show up in deep learning.
+
+Um, and, you know, I think you'll kind of find time and time again in this class, there's a lot of black magic.
+
+Still, there isn't actually good theoretical properties that tell us what is the optimal learning rate for a given model and set of data.
+[STUDENT] (reconstructed, confidence=0.80): Does it make sense to schedule or change the batch size during training?
+[EVIDENCE] people schedule learning rates for sure.
+
+There are a lot of best practices. There are a lot of kind of tricks.
+
+There's a lot of interesting things you can do thinking about like scaling laws based on,
+
+like how big the model is and how much data you have in your batch,
+
+etc., etc. there's good rules of thumb, but we don't actually know how to calculate the optimal learning rate.
+
+And so this is one of many hyperparameters that you'll try different values of.
+
+And then kind of pick the one that does the best.
+
+Okay, so what about stochastic gradient descent? Um, so we want to minimize loss overall.
+
+Right. Um and so our cost function remember we're summing over all of the data points to calculate that cost.
+
+Um so the issue is. If you have like a hundred data points, that's totally reasonable.
+
+But if you have lion right, billion data point data sets.
+
+If you had to calculate the loss over every single data point,
+
+every time you wanted to take a learning step, every time you wanted to change the model at all.
+
+It would be so slow. It'd be incredibly slow.
+
+And so the idea behind stochastic gradient descent is basically just you can approximate the overall
+
+direction of the gradient by just taking a subset of your data and calculating the gradient for that subset.
+
+And one way to think about this that I think is helpful is basically like we had that loss landscape that's like the true loss landscape.
+
+But essentially now you're going to calculate your loss for any point on the landscape.
+
+And then you're going to use a subset and you're going to calculate that for a subset of the data.
+
+And so that value of the loss and the gradient might not be the true loss or the true gradient for that set of model parameters.
+
+And so this is actually where some of the other black magic comes in which is around how do you select your batches.
+
+What does it mean to kind of like how big does your batch need to be for this
+
+to be a good approximation of which way you're going to want to move to train?
+
+Um, and so, you know, one way to think about this. If your batch size is one, then theta gets updated the entire model parameters.
+
+We get updated after every single example. You could imagine that this could get really noisy, right?
+
+Because now you're calculating you're approximating this gradient on a single data point each time.
+
+Um, if you back centuries N, which is the entire set of data, then this would just be gradient descent.
+
+And so the idea is you're picking some batch size that somewhere between one and end in practice.
+
+Does anyone know what we usually do to choose our batch size? Yeah.
+
+Pick your batch size at random. You know you pick the elements of the batch at random.
+
+How do you pick the batch size? Yeah.
+
+Okay. So that's actually a good point. So often we do pick batch sizes that are orders of two.
+
+Um but that's just because that plays nice with the compute that we have because you have like these registers that are, um, you know, binary.
+
+Um, but yes, totally.
+
+But like, given that we're going to pick, you know, 1024, 20 and 48, whatever, how do you pick which one of those you would want to use?
+
+Yeah. You can't do binary search over batch sizes.
+
+It's kind of expensive. In practice, we've found the very best thing to do is as big as possible.
+
+Oh. So basically, um, what is the limitation on how big your batch size can be?
+
+Is the memory register of your GPU. So what you do is you take whatever GPU you've been able to get your hands on,
+
+and then you give it the biggest batch size you can fit in memory without it crashing.
+
+Remembering that you have to fit both the model weights and the batch size and the batch in memory,
+
+and then you optimize all the other hyperparameters, because practically we've found that like larger batch sizes tend to be better.
+
+It's funny, right? You're like, okay, well like, oh, there's maybe like some very careful way to figure out the optimal that has.
+
+No, we just pick the biggest one.
+
+And that's also why there's been so much work in the hardware space to try to build the biggest memory register GPUs possible,
+
+because it's all about building bigger and bigger and bigger batch sizes.
+
+Um, which is interesting. Any questions? Yeah. So basically what's the intuition for taking the learning rate?
+
+What's the intuition for picking the learning rate? Hi. So my favorite trick is you take the paper that you're trying to replicate and you start
+
+with what they did because they did a lot of work to find parameters that worked well.
+
+And that's going to be somewhere in the ballpark of what's reasonable.
+
+And then my next trick is I always do that learning rate because for new data, the learning rate could be completely different.
+
+I take that learning rate an order of magnitude up and an order of magnitude down, and I see which one does anything reasonable.
+
+And then I start kind of like getting closer and closer on there is their intuition around that.
+
+No, it's just like hacks, you know, like. Um, weirdly like still .004 seems to work very well for a lot of things.
+
+Um. Yeah.
+
+So for the stochastic gradient descent, uh, with information.
+
+Lake sampling. The lost space or the. Oh, that's an interesting way to think about it.
+
+Yeah. So I do think it's kind of relevant to sampling. So. So one kind of thing that that isn't really obvious here, um, and actually wasn't obvious,
+
+I think for a long time in the machine learning community because they were working on really clean,
+
+well-behaved data sets where all of the data categories were balanced equally.
+
+So if you randomly sample essentially, like your distribution is pretty uniform and you're going to get this like nice approximation.
+
+I live in a world where everything is long tailed all the time, right?
+
+And so like if you just randomly sample batches, you're going to most of the time get batches that are completely full of their head classes.
+
+You very rarely see your tail classes when you do see them.
+
+They can perform really weirdly because you haven't seen them in a while.
+
+And so then like it can mess with your batch a lot. And so then there's actually some in those long tailed spaces.
+
+There's actually some of this like sampling literature where it actually looks at like
+
+sampling batches to balance between positives and negatives or balance across like,
+
+um, long tail distributions. And that would be the reason for you saying that we try to optimize for the.
+
+Possible to avoid that. Yeah, I think that is part of the intuition essentially, like especially if we have a lot of categories,
+
+having representation across all of those categories is really helpful.
+
+Um, in each batch. Right. Because you're kind of getting like a more holistic, um, representation of that loss.
+
+Yeah. That's it's a nice intuition. Huh. So if you think about it like an optimization problem, you have a very steep part of the.
+
+I know, uh, or you mean like a training curve in the training curve?
+
+Mhm. Yeah. So it seems like having a larger batch size becomes more important.
+
+Kind of, uh, further along. You kind of get away to smaller.
+
+That's interesting. Um, I'm not sure. Uh, I think.
+
+I think that, um. I think that it becomes more important towards the end of training to make sure that
+
+you're seeing like those hard cases and you're sort of learning those hard cases.
+
+So one way you can think about it is like often the model learns all the easy stuff very quickly,
+
+and then it spends a lot of time trying to learn the difficult stuff. Now, what difficult stuff is for your data?
+
+Can you know your use case can be very different, right?
+
+So, um, it's the thing that makes it difficult is like you have a lot of corner cases, then having a big batch size is really useful.
+
+If the thing that makes it difficult is it's actually just like a very fine grained thing,
+
+or you're dealing with a weird covariate shift, then I'm not sure that like batch size is going to fix it, I guess.
+
+Um, but yeah, I think like the rough intuition.
+
+Um, if you had a smaller batch size at the beginning, it would just take you longer to learn the easy stuff.
+[STUDENT] (reconstructed, confidence=0.95): What happens if you use a smaller batch size at the beginning of training?
+[EVIDENCE] Um, if you had a smaller batch size at the beginning, it would just take you longer to learn the easy stuff.
+
+Like, I think it's good to have a larger batch size throughout because you learn very quickly with a larger batch size.
+
+Yeah. Yes, absolutely. Um, but I not like in papers practically, I don't know, I don't like, I don't um, people schedule learning rates for sure.
+
+Um, but and people schedule sampling mechanisms.
+
+Right. Like you can think about, um, there's some work that looks at like basically adding more and more hard examples as you go.
+[STUDENT] (reconstructed, confidence=1.00): Do people use batch size schedulers during training?
+[EVIDENCE] Yeah. Yes, absolutely. Um, but I not like in papers practically, I don't know, I don't like, I don't um, people schedule learning rates for sure.
+
+Um, but I don't know, practically if like, a batch size scheduler really makes sense.
+
+Again, just because you kind of want to be maxing out your compute at all times for efficiency.
+
+Um, I can't see like, uh, an upside to smaller batch sizes ever, because you're just getting a worse approximation of the gradient.
+
+Right? Yeah. I mean, you can assume that it's usually wrong.
+
+How often do you update? Uh, okay.
+
+So so that was two different things. So the first thing was you usually assume your data is ID.
+
+I mean, yes, all the theory assumes the data is ID.
+
+[STUDENT] (reconstructed, confidence=1.00): How often do you update the batches or create new batches?
+[EVIDENCE] How often do you update? Uh, okay.
+I'm just laughing because again, like I live in a world I well, I just live in the real world where like,
+
+the distribution changes always the only constant is that the distribution is going to shift.
+
+Um, so we can't always make that assumption. But yes, with all of these kind of like, um, all the math, we assume ID, right?
+
+Um, the second question was about how often you find new batches, like, like.
+
+Yeah, I mean, that's kind of like an implementation detail, but often what people will do is they will like randomly sort all the data,
+
+[STUDENT] (reconstructed, confidence=1.00): Do people ever change the batch size during training?
+[EVIDENCE] Totally. This is kind of what he just asked, actually.
+um, for every epoch, and then they will just select the batches in order of that random sort.
+
+Um, but yeah, I mean, that's an implementation detail. Yes, exactly.
+
+To. Really? Like if.
+
+Totally. This is kind of what he just asked, actually.
+
+So basically, like, um, do people ever change the batch size during training?
+
+So I'm just saying there have been papers that explore it, but I don't think in practice people do it very often.
+
+And I think, yeah, basically you want to max out your compute trying to get the best approximation possible, but then you're trying to navigate like.
+
+So the reason that you might make a smaller well we'll get into this.
+
+Basically there's reasons you might want to have a smaller learning rate towards the end.
+
+And it kind of has to do with like if you have a minimum, you can just get stuck in this thing where you're bouncing back and forth,
+
+like not totally at the bottom of the minimum, because you can't take a small enough step to get into the bottom.
+
+So like at the very sort of end of training, making your step size much smaller means you can kind of like Meriel down to the very bottom.
+
+[STUDENT] (reconstructed, confidence=0.95): Does having a smaller batch size help with generalization?
+[EVIDENCE] Yes. Okay, so, um, having smaller batch size melt might help.
+Yes. Okay, so, um, having smaller batch size melt might help.
+
+Generalization. Like it depends on the your data set size for one.
+
+Right. So if you have a huge data set size then like your batch size relative to your data
+
+set size is always going to be small based on the constraints of the compute.
+
+Um, but we will talk about um, like evolution and evolutionary gradients and then a little bit.
+
+And that's basically this intuition you're talking about where like, um, you can think of um,
+
+a smaller batch size as like it's a could be thought of as a regularizer where you might,
+
+um, end up bouncing out of, like a local minima, but it can work the other way, too, right?
+
+Because you have like less stable training. So you could also bounce out of what would have been a good training run into a local minima.
+
+Now. Uh huh. Mhm.
+
+So, uh. It doesn't.
+
+It assumes that ID. Yeah.
+
+All of this assumes all the data points are independently and identically distributed, which is not true in reality.
+
+[STUDENT] (reconstructed, confidence=1.00): Do all of these functions have defined gradients in PyTorch, even if they are not differentiable everywhere?
+[EVIDENCE] Which of these have defined gradients in PyTorch? Hmm?
+Right? Yeah. Um, yeah.
+
+I mean, definitely like the reason you're able to model data that has correlations is the weights that what you're learning,
+
+the model parameters you're learning are picking up on the correlations that are useful for your predictive task.
+
+Um, yeah. You have to come to. Yes.
+
+Yes, absolutely. Okay. I'm going to keep going because we're going to touch on a bunch of this stuff.
+
+And I have a lot of nice pictures and it's better than me just yapping. Um, okay.
+
+So advantages of stochastic gradient descent. Um.
+[STUDENT] (reconstructed, confidence=0.90): Which types of loss landscapes are hard to optimize, and why?
+[EVIDENCE] Now you in the back you brought this up which I know that these are going to suck.
+
+It's fast. You can approximate the gradient with a very small sample. Um, and it is an implicit regularizer.
+
+That's what you were talking about.
+
+Um, but essentially I think basically the intuition here is you still want to take the biggest batch size possible.
+
+And that's usually just because the entire data sets these days are so big
+
+that the batch size is still going to be even the biggest batch size possible,
+
+it's still going to be kind of giving you some of that regularization. Um, disadvantages.
+
+You can have high variance and you can have unstable updates. And yeah, exactly what you were saying.
+
+Like depending on your loss landscape, you can have super poorly behaved gradient descent.
+
+Um, and there's kind of like some classic examples we'll talk about where basically,
+
+like you just you just can't really learn with gradient descent unless you do
+
+some other tricks to mess with the loss landscape to make it better behaved. Um, okay.
+
+How many of you guys have heard about the concept of momentum? Cool.
+
+All right. So momentum is basically just like a thing you can build on top of SGD.
+
+The intuition for it that I like is basically like you have a heavy ball, like where you start your ball is heavy.
+
+And so it's like rolling down a hill and it's picking up speed as it's going in the same direction.
+
+Right. So this is essentially like you're biasing your gradient steps to continue in the direction of the update you made previously.
+
+Um, and so what this looks like is you just have this momentum term. Um, there's an alpha parameter is a hyper parameter.
+
+And this is basically just kind of giving you this prior over like which direction is the right direction to go in.
+
+And this can actually help or can hurt. And that strength of momentum is a hyperparameter that can really change how much it helps or hurts.
+
+Um, one way to think about this is it's like it's basically like helping you learn even faster when you kind of get it just right.
+
+Um, so this is a really nice visual for this that I think is interesting.
+
+All right. So this is the loss landscape. We're trying to minimize just one dimensional here.
+
+Um, and uh, yeah. So you basically have like this big this minimum right at zero.
+
+But it's very, very, very sharp.
+
+So here what we're looking at is like basically this, this graph, um, this is like over the different optimization iterations.
+
+So from zero up to like however many steps like so here it's like 90 or 100, um,
+
+where your actual function is moving through the optimization because this visualization makes sense.
+
+Cool. So here if your momentum is zero, you might start here and you'll sort of slowly move towards the minimum.
+
+And then you find it. If you add momentum of 0.5 you get to that minimum lot faster, which is cool, right?
+
+You're learning faster, it's more efficient. You're spending less money on compute.
+
+Great. But if you put too much momentum for that loss landscape,
+
+you get this behavior where you like basically just you're like building too
+
+much momentum and it's keeping you going in the direction past the minimum.
+
+Um, and so basically, like you can see how it can help you learn faster, but it's yet another hyperparameter you have to mess with.
+
+Um, I really like this blog post, um, from distill, um, to help build intuition about momentum.
+
+It's really fun. It has like an interactive visualization if you guys want to play with that.
+
+All right. So now we're going to start talking about some of this. Like what makes a loss function.
+
+What makes a cost landscape well behaved.
+
+So which ones of these are differentiable. Who wants to tell me one that's differentiable.
+
+Yeah. Oh my God. What's another one that's differentiable?
+
+Yeah. Right. Yeah. Yes. Well done.
+
+Um. Good job. All right.
+
+Which of these have defined gradients in PyTorch? Hmm?
+
+All of them? All of them? Yes. Because PyTorch has autograd.
+
+And what Autograd does is it defines gradients for every point.
+
+How does it actually do that? So at weird points that are discontinuous, it will actually define left and right gradients.
+
+Or it'll define ways to approximate gradients and non differentiable points.
+
+And it's all handled for you which is lovely for us. So all of them have defined gradients in PyTorch.
+
+Now you in the back you brought this up which I know that these are going to suck.
+
+Which ones are going to be hard to optimize. Give me one. This one.
+
+Bottom left. Yeah, this one will, but this one won't.
+
+Why would this one not necessarily be hard to optimize despite the fact that it is not?
+
+It has a discontinuity. Totally.
+
+Yeah, yeah. So it doesn't matter where you start, you will actually find the same minimum.
+
+So discontinuous doesn't necessarily mean hard to optimize, but flat does.
+
+Right. If you put a ball anywhere on here, it's not going to move. That's the nice way to think about these two dimensional plots is like, oh, okay.
+
+If I put a ball there, what's going to happen? What else is going to be hard? Yeah.
+
+This one. Why? Because of exploding gradients.
+
+Exactly. Here at the bottom, the gradient gets really, really steep.
+
+Um, and so when you think about taking, like a step in a direction, essentially that step is defined on this axis.
+
+So if you're like, all right, um, like I want to take like a gradient step in this direction.
+
+So now if I say okay I'm like here and we calculate my gradient.
+
+And now it's like super, super super steep. If I take one step it's going to like it could take you really far away.
+
+And actually this might not even be the best example of that.
+
+But basically if if gradients get too steep, you can get shot off in a very, very far direction from your initial point.
+
+Um, there's, uh. One more. That's a little tricky.
+
+Why you're going to hit the. Yeah, yeah.
+
+So the top middle, um, has two minimums and one of them, uh, basically, depending on where you start,
+
+you could either find the, the optimal solution or something that was not actually the optimal solution.
+
+Um, yeah. So local minimums. Vanishing gradient.
+
+Exploding gradients. Um, so going back to those kind of like visualizations we had earlier because I think they're nice.
+
+Um, so this is like the maybe the best possible scenario.
+
+It's actually if you're a theoretician, it's like your dream because it's convex.
+
+And that means that all of the nice theory we have in optimization for convex optimization works well.
+
+And you can do a bunch of really fun math with this. Um, but from our perspective, it convex just means it has a single minimum,
+
+and that all the gradients point towards that minimum everywhere, and the gradient gracefully goes to zero as the minimums approach.
+
+It's not too spiky, and so you'll end up optimizing really well.
+
+This one's another example where it's discontinuous, but it's well but it has well-defined one sided derivatives.
+
+Not a problem for PyTorch. And you can optimize very quickly.
+
+This one has a vanishing gradient.
+
+So even so, even if it's not completely flat like here, the argument is that it's actually maybe just has a very, very slight slope.
+
+The gradient is super small, so progress can be really slow and noise based on your batches and stuff might dominate.
+
+You could like move in the wrong direction and you basically would just never really find your optimum.
+
+Here you actually have zero gradient, no gradient at all.
+
+So you just can't move. Yeah. Sorry.
+
+Here. So momentum is in the direction that you previously moved, so the direction you previously moved was zero.
+
+Your time is also going to be zero. Yeah, but but.
+
+So, um, you could on this one, you could add momentum.
+
+Massive momentum. Right.
+
+You would probably want to put like a huge momentum term and it might convince you to start moving in the direction of that gradient.
+
+But if you have, you can't give it momentum.
+
+If there's no direction of gradient, um, you can't like, kick the ball I guess.
+
+Uh, okay. Yeah. And then exploding gradient, basically your gradient goes to infinity, um, as you get close to the minimum.
+
+And so you end up overshooting and you get this really weird behaviors that are just poorly behaved.
+
+Um, and then here are multiple local minima. So you just can get stuck where you initialize matters a lot.
+
+And gradient descent won't guarantee that you're going to reach that global minimizer.
+
+And this is actually probably realistically what a lot of our true loss landscapes look like.
+
+We often don't necessarily reach a global minimum. Um, but the the idea is that, um,
+
+you maybe try a bunch of different random seeds and you'll maybe find one or something that will get to a global minimum.
+
+But so here, this is where I want to talk about evolution strategies a little bit.
+
+Um, so this is like another version, um, of uh, of like how you might try to get more robust in your gradient descent.
+
+So the idea of these evolution strategies is they're kind of like gradient adjacent.
+
+Um, so you're basically finding a local locally loss minimizing direction, but instead of finding it in your loss landscape,
+
+you're going to find it in your parameter space, um, a little differently.
+
+Um, and so basically here, the idea is you for every point, um, you sample small preservations in your parameters,
+
+um, and then you move in the direction of the preservations that achieve a lower loss.
+
+Um, so here, um, basically like you're adding essentially like random jitter.
+
+Um, and then kind of like finding like the one that that sort of proved you best for a given batch for a given, um, loss landscape.
+
+And this actually can successfully minimize, um, some of these like non differentiable functions where you have zero gradients.
+
+Because essentially what you're thinking about here is like if you start here and if your preservations can be large,
+
+you might essentially eventually sample some things that are over here and start moving towards those things that are like over here.
+
+Um, cool. Another thing that people use to kind of handle some of these poorly behaved functions is gradient clipping.
+
+Um, and this one's really, really simple. Basically, just like if you have exploding gradients, one way to deal with it is you just clip them.
+
+You just don't let the gradients get too big. So just add like a clipping filter.
+
+Um, that basically like if the gradient is bigger than M, you just reduce it down to M in that direction.
+
+Useful. Very commonly used. Actually. Um, people often use gradient clipping when training.
+
+Um, here is basically just. Yeah, like you're adding like, uh, a step in the direction of the gradient, but that gradient size is going to be clipped.
+
+And this will successfully minimize things like this. Right.
+
+You basically when you get closer to this minimum, you just don't let the gradient get too big, but it'll still be in the right direction.
+
+Um, and then you end up finding that local minimum, that global minimum.
+
+So based on this, what do we think is important than a loss function?
+
+Well, it seems like the community is kind of converging around a few really key things that make losses play nicely.
+
+One is that it's continuous everywhere. Now we saw that this is a required, but it does seem to be a nice property.
+
+Um, the other is that it's differentiable everywhere. And then the third one is that it's smooth everywhere, right.
+
+Um, and it's interesting actually to think about this in, in the context of our activation functions.
+
+These are our loss functions, but they're still functions that we are using in our neural network.
+
+[STUDENT] (reconstructed, confidence=1.00): What is the chain rule for derivatives?
+[EVIDENCE] So who remembers the chain rule? If I have a function h of x equals f of g of x.
+So if you think about something like a ReLU right. This is everywhere continuous.
+
+It's almost everywhere differentiable. It's not differentiable everywhere.
+
+We still have this kind of like kink in it at zero.
+
+Um, and it's not everywhere smooth. And interestingly, this is sort of part of why people are starting to introduce some newer loss functions.
+
+[STUDENT] (reconstructed, confidence=1.00): What is the shape of the derivative d z?
+[EVIDENCE] So now if we define the length of vector u to be the length of vector um, z to be m and the length of vector x to be n.
+For example, the glue which is a Gaussian error linear unit.
+
+Um, and this one has started to get used more and more commonly.
+[STUDENT] (reconstructed, confidence=0.90): What’s the next shape or step in the derivation?
+[EVIDENCE] Next one. Go for it.
+
+And this is interesting because basically they've smoothed out that kink by just putting in this dip in the activation function.
+
+Um, now the interesting thing here is you do have continuous, differentiable and smooth,
+
+but it's not monotonic anymore, which is kind of fascinating, right?
+
+Like there's a point where it goes down and then kind of goes back up again.
+
+Um, but it seems like in some cases, especially for very large training, this does seem to have a positive effect.
+
+And the paper around Gillers is down here. Um, cool.
+
+All right. One more thing. Just because. Just a sanity check.
+
+So in the machine learning community. We are struggling to handle the scale in my class, but also in our big conferences.
+[STUDENT] (reconstructed, confidence=0.95): How do you get L and G for each layer?
+[EVIDENCE] And g is the gradient of the cost with respect to the activations.
+
+Uh, in the last NeurIPS. There was a reviewer for NeurIPS who very it went viral online because they said this paper said they optimized with atom.
+
+That's obviously a typo. Who is atom? You know, they didn't read the paper well enough for a fact, like they need to do more copy editing.
+
+Atom is an optimizer that uses momentum and you guys should learn this stuff.
+
+So I think it's really like, I just don't want anyone from MIT to be those reviewers right after you,
+
+after you're in this class, start writing papers. Like, just like Adam is not a dude.
+
+Okay. All right. Rant over.
+
+Cool. Um, okay, so let's let's talk about computation graphs.
+
+Okay. So this is a graph, right? Um, and you know, it's a graph because it has nodes and edges.
+
+Um, so these are nodes and these are edges. And if you're talking about a computation graph.
+
+Then the assumption we're making is that each of those nodes is a function.
+
+Basically it's a function that does some sort of computation.
+
+So this is a graph of functional transformations that are happening in those nodes that when you string them all together,
+
+they do something you want the model to do.
+
+And what we say is deep learning primarily, though of course this is no longer true when you think about things like diffusion.
+
+Uh, deep learning primarily deals with directed acyclic graphs, um, where each node in the entire system is differentiable.
+
+So you can calculate a gradient for your entire computation graph.
+
+Um, and now we're going to basically think of this as like what we're going to call differential programing.
+
+The differential comes from that ability to take that derivative everywhere.
+
+And um the programing part is essentially like these all could be components of a neural network.
+
+Like this could be a neural network. And each of these could be a linear layer with a nonlinear activation.
+
+Or they could be entire neural networks. Right. Like this could be this could be like, uh, Dino V3, right.
+
+This thing. And then it's going to send the computation from Dino three to whatever your next component is.
+
+So it's kind of like a meta way to think about what deep learning is today.
+
+And, and these components can be as large or as small as makes sense for your problem.
+
+So we spent some time going through a very simple version of this computation graph.
+
+Um, so here we're just looking at like the simplest perceptron, right.
+
+You have a linear layer. You have a non-linearity in this case a ReLU pointwise non-linearity.
+
+And then another linear layer. Okay. So a multi-layer perceptron um what does it look like to do a forward pass.
+
+On this thing. So here I'm going to be talking through some terminology,
+
+but also really trying to emphasize like what are the what are the ways that we implement these in practice.
+
+Do you think about a forward pass for this model? Essentially, for any of for this entire kind of function, you have your input data.
+
+You have your starting point model parameters theta.
+
+And the output is going to be what basically happens to your input given those parameters if you run it through that function.
+
+So if you have a bunch of layers, um, then, you know, you have your parameters for each of those layers, those starting point parameters.
+
+So your theta one or your parameters for function one that are two of your parameters for function two, etc., etc., etc.
+
+Um, and you're just basically passing, you know, x0 with that, that initial set of parameters, then you get x1.
+
+Now that's the thing that's getting passed to your next functional unit. So it's basically just a chain.
+
+It's a it's a chain structured graph. Um this computation graph could represent a multi-layer perceptron.
+
+Right. You have many different linear layers, for example, um, that are chained together.
+
+So when you're talking about learning right now, we have our loss landscape.
+
+What we need to do is we need to compute the gradients of our cost with respect to all of the model parameters within, um, within this model.
+
+And so by design, we're going to make sure each layer is differentiable with respect to its inputs where the inputs are the data and the parameters.
+
+Um, okay. So very quick aside into matrix calculus, um, just because we're going to do a bunch of this like super quick refresher.
+
+All right.
+
+If X is a column vector of size n by one, we can define a function on that vector where the output is also going to be um, uh, a vector or a scalar.
+
+Right. You can think about different types of functions operating on vectors.
+
+If y is a scalar, then if you want to take the derivative of y with respect to x,
+
+you take the derivative with respect to each of the components of x, right?
+
+And the derivative ends up being a row vector. That's the notation choice for making.
+
+If Y is a vector, then you can calculate the derivative of y with respect to x using the Jacobian.
+
+Um, so that's basically like you have the partial derivatives, um, with respect to the individual pairs of components.
+
+Partial derivative of y one with respect to x sub one, etc., etc.
+
+Hopefully you guys have all seen this before. Um, so then the derivative of y would be a matrix of size m by n, right?
+
+Uh, so basically m is the size of y and as the size of x.
+
+All right. If y is a scalar and y and x is a matrix, then you can similarly take these um kind of partial derivatives.
+
+But now it's going to be with with respect to each of the components of the matrix.
+
+And the output will be a matrix of size m by n.
+
+Wikipedia says the three types of derivatives that have not been considered are those involving vectors by matrices,
+
+matrices by vectors, and matrices by matrices. These are not as widely considered, and a notation is not widely agreed upon.
+
+Fine. We're not going to talk about any of these. The only things we care about are taking derivatives of scalars with respect to vectors,
+
+vectors with respect to vectors, and scalars with respect to matrices.
+
+All right. So who remembers the chain rule? If I have a function h of x equals f of g of x.
+
+So you're going to apply the function f to the output of the function of g on x.
+
+What's the chain rule. What's the derivative. Help me out here.
+
+Last year the person who did this did it wrong. And I loved it.
+
+So go for it. Yeah.
+
+So the derivative of h will be f, the derivative of f with respect to g of x times the derivative of g with respect to x.
+
+Yeah. So. If you write z equals f of u and you equals g of x, then you can write it out this way.
+
+D x equals two u times do UX right.
+
+Pretty straightforward. So now if we define the length of vector u to be the length of vector um, z to be m and the length of vector x to be n.
+
+What sizes should these things be? So what?
+
+What is the shape of d z? If these are the parameters we're using to to to tell you the length.
+
+Yeah. Yep. All right.
+
+Next one. Go for it.
+
+Yeah. Yes! Awesome. Thank you. Great.
+
+Um, this is really handy for debugging when you need to debug your code for deep learning.
+
+Check the shapes of things. Because the likelihood that you've accidentally transposed something,
+
+or like you've multiplied two things together in the wrong order, the shapes will tell you where you've gone wrong.
+
+I have caught so many bugs in my papers by doing what we call shape debugging, which is literally just checking that the shapes are the right shapes.
+
+Um, all right. So the cool thing about this is this just basically means that it's all matrix multiplication, right?
+
+You want to take the chain rule. You're just multiplying these two things together to get that right.
+
+So you can take these derivatives by multiplying matrices. Okay.
+
+Cool. So now that we kind of remember a little bit of matrix calculus,
+
+the trick of backpropagation when we're taking these gradients is the fact that you can reuse a lot of your computation,
+
+because we're essentially taking the derivative of a very long nested chain rule.
+
+So if I need to take the derivative of my cost with respect to the first set of model parameters, it's going to be chained all the way out.
+
+The derivative kind of of each of these kind of intermediate things with respect to each other.
+
+And then at the end you have um, basically just the derivative of x2 with respect to x one,
+
+and then the derivative of x1 with respect to theta one if you do it for the next one.
+
+So now you want to calculate that gradient with respect to those the second layer parameters.
+
+You see that actually a lot of the computation is exactly the same.
+
+And the only thing that's different is just that little bit at the end.
+
+So this means we can separately compute all the derivatives using the chain rule.
+
+But you don't have to. The terms in the gray box are shared. So you only have to compute those values once.
+
+And backpropagation is this algorithm that allows us to propagate those shared terms through our computation graph,
+
+which basically just means efficiency. So if this is your forward pass and you're sending data forward through the network,
+
+what you're doing is in that forward pass for each layer, you're computing the outputs.
+
+And and then when you get to the very end you compute and calculate your loss.
+
+So then if you're doing a backward pass, essentially you're sending those error signals from the gradients back backwards through
+
+the network from the outputs and the loss back to the inputs in the parameters.
+
+Um, and so then if you have kind of like a generic layer, basically you only have to keep track of a few, a few things.
+
+Right. And these are things that PyTorch kind of has. They keep track of innately.
+
+Right. Um, each of your kind of layers will have these like innate, um,
+
+kind of sub variable like class variables that will keep track of all of this stuff during training.
+
+So you keep track of two kinds of arrays and partial derivatives.
+
+First, you're going to keep track of what we might call L, which is the gradient of the layer outputs with or with respect to the layer inputs.
+
+That'll be a matrix. And then you're going to keep g.
+
+And g is the gradient of the cost with respect to the activations.
+
+That's going to be a row vector. And then your parameter update.
+
+If you know LNG is super easy, right? Because you basically are just going to multiply G by L.
+
+Super nice. How do you get LNG for each layer?
+
+L comes from the derivative function of the layer, and G can be computed iteratively.
+
+Basically using recurrence. And then you kind of have this back propagation of your error signals coming from that recurrence.
+
+So essentially all of this machinery is just all there to help us compute which way to update our parameters,
+
+which way to wiggle them so that we're getting something better in our next iteration.
+
+So you want to think about the full algorithm forward and backward. We have this forward pass.
+
+We have this backward pass. And then we update our parameters and we repeat.
+
+Now just as a little cheat sheet. What does this really look like during back propagation.
+
+Okay. So I'm going to use the firm arrows to be things that are going in and the dotted arrows to be things that are going out.
+
+So in a forward pass you're sending in the output from the previous layer.
+
+And then you're sending out the output from your layer.
+
+In the backward pass you're taking those gradients with respect to the the layer below you and in.
+
+And then you're calculating the gradients with respect to the layer above you going out or sorry to your anyway, you know what I mean.
+
+And then the last thing we need to keep are just these ways that we update the parameters.
+
+We take the input parameters in, and then we're going to calculate the way that we should change those parameters going out.
+
+This means every layer has three inputs during training right.
+
+You have alpha one. You have your gradient coming in from the prior the prior direction.
+
+And you have your parameters and you have three outputs. And these are the three things we need to calculate.
+
+So given your inputs all you need to evaluate are these three things.
+
+Now if we want to summarize this for taking a forward pass for every training example you basically run your model through all of these.
+
+You run your data through all these layers. You calculate all of the gradients doing the backwards pass.
+
+And then you update all of your parameters and you repeat. Now we only we don't do this for one data point at a time.
+
+We do it over batches. Right? And so this means we want to minimize the average cost over lots of different data points.
+
+Um, now the nice thing is the gradient of the total cost, it turns out, is just the average of all the data gradients that the per data point cost.
+
+So you can calculate in parallel all of the costs and then use that average, um, cost to propagate the gradients back through all the data points.
+
+Um, so for linear layer you have this nice forward propagation.
+
+This just looks like matrix multiplication right. X out is your weights times your x.
+
+And if you want to backprop to the input.
+
+Well if you look at the i'th component of your output with respect to the jth component of your input,
+
+[STUDENT] (reconstructed, confidence=0.85): Why do we use batches instead of single data points during training?
+[EVIDENCE] Now we only we don't do this for one data point at a time.
+what you find is actually, um, you essentially just are transposing.
+
+So to get the gradient in, you just take the gradient out and you multiply that by your weight matrix.
+
+So it just looks like that again really simple matrix multiplication.
+
+Um okay. So now how do we use the set of outputs to compute the way we need to update the weights.
+
+Um, so here, if you want to back prop to your weights, we have to look at how the parameters in the weights will change the cost.
+
+And actually if you look at how parameter like w sub I j changes the cost, actually only the ice component of the output ends up changing.
+
+So this actually means that you can kind of factor this out and what you get,
+
+because it's actually only changing with respect to one of those dimensions.
+
+Is this, which is another nice matrix multiplication.
+
+You just multiply x n by your gradient out and that will give you your update to the weights.
+
+And so then it's actually quite easy to do. So the cool thing is, when everything is linear, it all plays a very nice and it all ends up being linear.
+
+The gradients are also linear. Um, and so now if you look at a linear layer this is like just a cheat sheet for you guys.
+
+Here's how all of these things get calculated. And this is in the slides which is probably helpful for your homework.
+
+So now the fun thing is, if you look at a whole MLP, you basically just have these weights.
+
+Now you take a ReLU. Now you have this sort of next step.
+
+And now you're calculating your loss. So now if you're looking at it backward, how does that happen?
+
+So we already talked about how you kind of just do these matrix multiplications backwards with
+
+like reversing the order that you're multiplying the weights by the gradients coming in.
+
+But what do you do about relus. Interestingly,
+
+the way you actually make this still play nice and still be linear is you just build essentially a diagonalize
+
+matrix where you have to keep track of what the activation values were for each of the the inputs going in.
+
+And this basically acts as a kind of a gating function that makes sure that you're not
+
+propagating gradients for components that were not actually contributing to the gradients,
+
+because they were in that zero part of of your ReLU. Um, cool.
+
+So this is also a linear model, a linear, um, sort of an MLP.
+
+And so the cool thing is you can kind of fold it out and you can actually think of the entire process of taking as a learning step as just one.
+
+Linear model. All of these are just like a one single forward pass.
+
+But what you have is you have these skipped connections where the weights are kind of being propagated through to the relevant layers,
+
+and that's kind of how you're propagating those gradients.
+
+So one kind of cool thing is that even if you don't have a linear, um, even if you don't have linear layers, the estimation of the gradient.
+
+Is basically always linear. And that's because we're taking by construction a linear approximation to the true gradient at that point,
+
+so that back propagation is almost always linear. Cool.
+
+All right. I have to breeze through some of the stuff because we asked a lot of questions at beginning, but, um, DAGs, what do you do about directly?
+
+Cyclic graphs? What if you don't just have a chain? Well merge operation.
+
+This is kind of fun. If you need to take the gradient and you need to split it.
+
+You basically just now have to take the gradient with respect to these individual parameters separately.
+
+Um, now what if you actually have a branch operation in your graph?
+
+That's easy. You just sum the gradients coming in, um, from both of those branches.
+
+And this actually has a cool synonym to the idea of sharing parameters and in models.
+
+So if we have this model where we have, you know, these different components that are all like different weights,
+
+well, there is a lot of reasons where we might actually want to use the same weights for different parts of the model.
+
+You want to actually keep some component of your model fixed and shared, um, or specifically shared.
+
+You still will learn it, but you want to use it in different parts of the model.
+
+Um, so here, if you just turn this on its side, it's actually a branching operation.
+
+Right. And so again, if you have something where you're like, okay, I'm going to use this encoder and I can use it in multiple parts of my system.
+
+The way that you actually propagate those gradients is you just sum them across all of the places where it shared.
+
+[STUDENT] (reconstructed, confidence=0.95): Do you mean the lake?
+[EVIDENCE] Uh huh. Do you mean the lake?
+Cool. So parameter sharing is just some ingredients. All right.
+
+Getting into the zooming out a little bit. We have all these components now.
+
+You'll have an opportunity in your homework to kind of work through actually implementing some of this stuff.
+
+Thinking about kind of how simple actually all of it ends up being. Um, but now thinking about the idea of differential programing.
+
+So we introduce deep learning. Right. It's like these graphs, all of this, you know, these nodes and these edges.
+
+And you can kind of calculate and propagate like your optimization through these graphs.
+
+Differential programing is basically just taking that and writing it as code.
+
+And this is really what things like PyTorch and TensorFlow allow us to do.
+
+They allow us to keep track of all the different components of like the weights,
+
+the gradients, etc., so that we can easily optimize over the code that we've written.
+
+So now deep nets are popular for a few reasons, right? They're easy to optimize.
+
+They're differentiable and they have this compositional structure.
+
+Right? You can almost think of it as block based programing.
+
+And so then this emerging term for general models with these properties could be differential programing.
+
+Um, and this is like a few years old now. But you know, y'all LeCun is basically like deep learning as a term outlived its usefulness.
+
+It's no longer the right buzz phrase. We should all say differentiable programing.
+
+Um, Tom Dietrich a little bit more, a little less sensational.
+
+Um, essentially it was just like, all right, well, now this is a way to think about programing where everything is differential,
+
+and now we're just trying to figure out what the, the components of this, this, um, program, these programs are right.
+
+Convolutions pooling LSTMs, etc. So an example of what this could look like.
+
+So this is uh, this is a paper from 2017, um, that was called neural module networks.
+
+And it's basically recognizing you can kind of take these components. Right.
+
+A CNN and Lstm, these parser, this whole sort of structure, all of these are computational.
+
+Um, you can fix some of them, you can learn some of them, and you essentially are building something where instead of just designing software,
+
+where you construct every component of what you want, the model, what you want the software to do,
+
+um, you're now designing software where some of it is fixed and some of it can be optimized.
+
+And, uh, this lens actually is getting a lot more interesting now that we have these agent like systems.
+
+Right? Because this idea of like, how do you find an optimum where now the process of finding that optimum is not just,
+
+um, through kind of like gradient descent, it's also actually through interaction.
+
+It gets a lot more complicated to think about.
+
+But I would argue that it's still potentially falls under the umbrella of this idea of differential programing,
+
+because there's still components they are actually optimizing.
+
+And the mechanism of optimization is now a little bit different. Um, cool.
+
+So one way to think about this is like you could take your whole graph, you could fix most of it and you could only optimize a single component.
+
+Right. So here maybe you fix all of these other things and then just one piece actually gets learned, right?
+
+If you saw this in a in a paper, there would be little snowflakes everywhere.
+
+And you'd have the little fire emoji right by the one little piece that was going to get optimized.
+
+Um, now this is pretty straightforward.
+
+But the cool thing about backprop, if everything is differentiable, it means you can optimize any node or edge.
+
+So any function or variable in your entire computation with with respect to any scalar cost.
+
+So you can think about like optimizing this component with respect to your cost.
+
+But you can also think about optimizing, um, the input data with respect to the cost.
+
+Right. Um, and so that's kind of cool. Instead of optimizing, you can optimize parameters, but you can also optimize inputs.
+
+Um, so here like you know, DG theta that's telling us how much the total cost is increasing or decreasing if we change our parameters.
+
+But the change in y sub j with respect to x tells us how much the chameleon score gets increased or decreased by changing the image pixels.
+
+And so now if you assume your model is fixed, this is actually teaching something you something about your model and what it's learned.
+
+Um, and then this leads to this whole kind of fun gimmick, honestly, um,
+
+that helps you visualize what units are learning so you can make an image that will maximize the output of cat.
+
+And you turns out you get something like this, right?
+
+Um, or you can make an image that maximizes the value of neuron j on layer L and you get something like this.
+
+So maybe this this means that this is basically the thing that maximizes the value of that.
+
+And so then maybe that sort of specific neuron is looking for these types of structures.
+
+And this is where you get things like deep dream which is basically like these
+
+very kind of beautiful and kind of surrealist visualizations of what models,
+
+um, are learning.
+
+And if you kind of continue this, um, and take it even more to an extreme, you get things like, so if you have clip as a starting point, right.
+
+So how many of you have heard of clip? Essentially it's a it's a model where you're trying to jointly train and um, two different encoding functions,
+
+one of which encodes text and one of which encodes images with the supervisory signal, or the goal being that if the text correlates with the images,
+
+is associated with the images, captures the same semantic concepts,
+
+then the embeddings of these two things should be as close as possible in this kind of shared embedding space that you're learning.
+
+So you're trying to basically learn semantic similarity across images and text.
+
+That's. Really cool. It turns out you can take this all of these kind of learned computational pieces,
+
+and then you can stick them together in different ways and add other things.
+
+So here you take the text encoder and the image encoder from clip.
+
+You take another pre-trained and fixed image generator. Something is learned to go from some latent space, some latent embedding to a generated image.
+
+And then if you have this piece and these pieces and you have this maximization where you're actually trying to say,
+
+okay, I want the text and the image encoding to be similar as possible,
+
+then you can put an input in,
+
+and you can train this model with respect to that input to optimize the latent space to find the image that is most similar to the text you've put in.
+
+Right. And so now if you actually look at that over training, you get this right.
+
+Like this weird like kind of space age question mark, what have you.
+
+But the cool part here is this is like a really nice way to think about how, um,
+
+once you have all of these components, what you fix and what you optimize for can be very flexible.
+
+Um, cool. Okay, so that's it for today.
+
+I hope this is like, encourage you to think a little differently about what supervision can look like and what you can try to optimize.
+
+Um, because there's so many of you, I'm going to try a different thing, which is like,
+
+if you have any other questions, just come up and ask and I'll hang out for a bit. So it always gets really loud and that's like hard to hear.
+
+Um, but yeah, thanks. Okay.
+
+Uh huh. Do you mean the lake?
+
+I know that the first time that Mr.

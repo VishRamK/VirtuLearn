@@ -1,0 +1,20 @@
+{
+  "score_trends": [
+    {
+      "date": "2025-09-20 20:15:04.744818",
+      "score": 96.0,
+      "teacher": "Sara Beery",
+      "course": "6.000"
+    }
+  ],
+  "teacher_improvements": {
+    "Sara Beery": [
+      {
+        "date": "2025-09-20 20:15:04.744818",
+        "score": 96.0
+      }
+    ]
+  },
+  "department_trends": {},
+  "last_updated": "2025-09-20T20:15:04.924776"
+}

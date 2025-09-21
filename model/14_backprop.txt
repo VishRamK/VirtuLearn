@@ -1,0 +1,1429 @@
+i
+i
+i
+i
+i
+i
+i
+i
+14 Backpropagation
+14.1 Introduction
+A key idea of neural nets is to decompose computation into a series of layers. In this chapter
+we will think of layers as modular blocks that can be chained together into a computation
+graph. Figure 14.1 shows the computation graph for the two-layer multilayer perceptron
+(MLP) from chapter 12.
+x
+...
+W1
+z
+...
+h
+...
+W2
+y
+...
+linear
+relu
+linear
+x
+z
+h
+ˆy
+()
+Figure 14.1: In this chap-
+ter we will visualize
+neural nets as a sequence
+of layers, which we call a
+computation graph.
+Each layer takes in some inputs and transforms them into some outputs. We call this the
+forward pass through the layer. If the layer has parameters, we will consider the parameters
+to be an input to a parameter-free transformation:
+xout = f(xin, ✓)
+(14.1)
+Graphically, we will depict the forward operation of a layer like shown below (ﬁgure 14.2).
+f(xin, ✓)
+✓
+xin
+xout
+forward
+Figure 14.2: Forward
+operation of a neural net
+layer.
+The learning problem is to ﬁnd the parameters ✓that achieve a desired mapping. Usually
+we will solve this problem via gradient descent. The question of this chapter is, how do we
+compute the gradients?
+We will use the color
+to indicate free
+parameters, which are set
+via learning and are not
+the result of any other
+processing.
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+166
+Chapter 14
+Backpropagation is an algorithm that efﬁciently calculates the gradient of the loss with
+respect to each and every parameter in a computation graph. It relies on a special new
+operation, called backward that, just like forward, can be deﬁned for each layer, and acts
+in isolation from the rest of the graph. But ﬁrst, before we get to deﬁning backward, we
+will build up some intuition about the key trick backpropagation will exploit.
+14.2 The Trick of Backpropagation: Reuse of Computation
+To start, we will consider a simple computation graph that is a chain of functions fL ◦fL–1 ◦
+· · · f2 ◦f1, with each function fl parameterized by ✓l.
+Such a computation graph
+could represent an MLP,
+for example, which we
+will see in the next
+section.
+We aim to optimize the parameters
+with respect to a loss function L. The loss can be treated as another node in our computation
+graph, which takes in xL (the output of fL) and outputs a scalar J, the loss. This computation
+graph appears as follows (ﬁgure 14.3).
+This computation graph is
+a narrow tree; the
+parameters live on
+branches of length 1. This
+can be easier to see when
+we plot it with data and
+parameters as nodes and
+edges as the functions:
+· · ·
+The parameters, along
+with the input training
+data, are the leaves of the
+computation graph.
+Figure 14.3: Basic
+sequential com-
+putation graph.
+f1
+f2
+fL–1
+fL
+x0
+x1
+· · ·
+xL–1
+xL
+✓1
+✓2
+✓L–1
+✓L
+L
+J
+|
+{z
+}
+@J
+@✓1
+|
+{z
+}
+@J
+@✓2
+Our goal is to update all the values highlighted in blue: ✓1, ✓2, and so forth. To do so we
+need to compute the gradients
+@J
+@✓1 ,
+@J
+@✓2 , etc. Each of these gradients can be calculated via
+the chain rule. Here is the chain rule written out for the gradients for ✓1 and ✓2:
+@J
+@✓1
+=
+@J
+@xL
+@xL
+@xL–1
+· · · @x3
+@x2
+@x2
+x1
+@x1
+@✓1
+(14.2)
+@J
+@✓2
+=
+@J
+@xL
+@xL
+@xL–1
+· · · @x3
+@x2
+@x2
+@✓2
+(14.3)
+Rather than evaluating both equations separately, we notice that all the terms in each gray
+box are shared. We only need to evaluate this product once, and then can use it to compute
+both
+@J
+@✓1 and
+@J
+@✓2 . Now notice that this pattern of reuse can be applied in the same way
+for ✓3, ✓4, and so on. This is the whole trick of backpropagation: rather than computing
+each layer’s gradients independently, observe that they share many of the same terms, so
+we might as well calculate each shared term once and reuse them.
+This strategy, in general,
+is called dynamic
+programming.
+14.3 Backward for a Generic Layer
+To come up with a general algorithm for reusing all the shared computation, we will ﬁrst
+look at one generic layer in isolation, and see what we need in order to update its parameters
+(ﬁgure 14.4).
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+Backpropagation
+167
+f(xin, ✓)
+✓
+xin
+xout · · ·
+J
+· · ·
+|
+{z
+}
+L
+|
+{z
+}
+gout
+|
+{z
+}
+gin
+Figure 14.4: A generic
+layer in the computa-
+tion graph. The braces
+represent the part of the
+computation graph we
+need to consider in order
+to evaluate gout, L, and
+gin.
+Here we have introduced two new shorthands, L and g; these represent arrays of partial
+derivatives, deﬁned below, and they are the key arrays we need to keep track of to do
+backprop. They are deﬁned as:
+All these arrays represent
+the gradient at a single
+operating point, namely
+that of the current value of
+the data and parameters.
+gl , @J
+@xl
+/
+grad of cost with respect to xl
+[1 ⇥|xl|]
+(14.4)
+L ,
+@xout
+@[xin, ✓]
+/
+grad of layer
+(14.5)
+Lx , @xout
+@xin
+/
+with respect to layer input data
+[|xout| ⇥|xin|] (14.6)
+L✓, @xout
+@✓
+/
+with respect to layer params
+[|xout| ⇥|✓|]
+(14.7)
+These arrays give a simple formula for computing the gradient we need, that is, @J
+@✓, in
+order to update ✓to minimize the cost:
+@J
+@✓=
+@J
+@xout
+| {z }
+gout
+@xout
+@✓
+| {z }
+L✓
+= goutL✓
+(14.8)
+✓i+1  ✓i – ⌘
+⇣@J
+@✓
+⌘T
+/
+update
+(14.9)
+The transpose is because,
+by convention, ✓is a
+column vector while @J
+@✓is
+a row vector; see the
+Notation section prior to
+chapter 1.
+The remaining question is clear: how do we get gl and L✓
+l for each layer l?
+Computing L is an entirely local process: for each layer, we just need to know the func-
+tional form of its derivative, f 0, which we then evaluate at the operating point [xin, ✓] to
+obtain L = f 0(xin, ✓).
+Computing g is a bit trickier; it requires evaluating the chain rule, and depends on all
+the layers between xout and J. However, this can be computed iteratively: once we know
+gl, computing gl–1 is just one more matrix multiply! This can be summarized with the
+following recurrence relation:
+gin = goutLx
+/
+backpropagation of errors
+(14.10)
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+168
+Chapter 14
+This recurrence is essence of backprop: it sends error signals (gradients) backward through
+the network, starting at the last layer and iteratively applying equation (14.10) to compute
+g for each previous layer.
+Deep learning libraries
+like Pytorch have a .grad
+ﬁeld associated with each
+variable (data, activations,
+parameters). This ﬁeld
+represents @J
+@v for each
+variable v.
+We are ﬁnally ready to deﬁne the full backward function promised at the beginning of
+this chapter! It consists of the following operation, shown in ﬁgure 14.5, which has three
+inputs (xin, ✓, gout) and two outputs (gin and @J
+@✓).
+Figure 14.5: backward
+for a generic layer. We use
+the color
+to indicate
+parameter gradients.
+backward
+L = f 0(xin, ✓)
+gin = goutLx
+@J
+@✓= goutL✓
+@J
+@✓
+xin, ✓
+gin
+gout
+14.4 The Full Algorithm: Forward, Then Backward
+We are ready now to deﬁne the full backprop algorithm. In the last section we saw that we
+can easily compute the gradient update for ✓l once we have computed Ll and gl.
+The gl and Ll are the g
+and L arrays for layer l.
+So, we just need to order our operations so that when we get to updating layer l we have
+these two arrays ready. The way to do it is to ﬁrst compute a forward pass through the
+entire network, which means starting with input data x0 and evaluating layer by layer to
+produce the sequence x0, x1, …, xL. Figure 14.6 shows what the forward pass looks like.
+We use the color
+for
+data/activations being
+passed forward through
+the network.
+Figure 14.6:
+Forward pass.
+f1
+f2
+fL–1
+fL
+x0
+x1
+· · ·
+xL–1
+xL
+✓1
+✓2
+✓L–1
+✓L
+L
+Next, we compute a backward pass, iteratively evaluating the g’s and obtaining the
+sequence gL, gL–1, …, as well as the parameter gradients for each layer (ﬁgure 14.7).
+We use the color
+for
+data/activation gradients
+being passed backward
+through the network.
+Figure 14.7:
+Backward pass.
+f 0
+1
+f 0
+2
+f 0
+L–1
+f 0
+L
+g0
+g1
+· · ·
+gL–1
+gL
+@J
+@✓1
+@J
+@✓2
+@J
+@✓L–1
+@J
+@✓L
+L0
+1
+The full algorithm is summarized in algorithm 14.1.
+14.5 Backpropagation Over Data Batches
+So far, we have only examined computing the gradient of the loss for a single datapoint,
+x. As you may recall from chapters 9 and 10, the total cost function we wish to minimize
+will typically be the average of the losses over all the datapoints in a training set, {x(i)}N
+i=1.
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+Backpropagation
+169
+Algorithm 14.1: Backpropagation (for chain computation graphs).
+Algorithm 14.1: A simple
+version of the
+backpropagation
+algorithm. This will work
+for the computation
+graphs we have seen so
+far, which consist of a
+series of layers,
+f1 ◦… ◦fL, with no
+merging or branching (see
+section 14.7 for how to
+handle more complicated
+graphs with merge and
+branch operations).
+1 Input: parameter vector ✓= {✓l}L
+l=1, f1, …, fL, f 0
+1, …, f 0
+L, training datapoint {x0, y},
+Loss function L : RN ! R
+2 Output: gradient direction @J
+@✓=
+n
+@J
+@✓l
+oL
+l=1
+3
+4 Forward pass:
+5 for l = 1, . . . , L do
+6
+xl = fl(xl–1, ✓l)
+7
+8 Backward pass:
+9 gL = L0(xL, y)
+10 for l = L, . . . , 1 do
+11
+Ll = f 0
+l (xl–1, ✓l)
+12
+gl–1 = glLx
+l
+13
+@J
+@✓l = glL✓
+l
+However, once we know how to compute the gradient for a single datapoint, we can easily
+compute the gradient for the whole dataset, due to the following identity:
+@ 1
+N
+PN
+i=1 Ji(✓)
+@✓
+= 1
+N
+N
+X
+i=1
+@Ji(✓)
+@✓
+(14.11)
+The gradient of a sum of
+terms is the sum of the
+gradients of each term.
+where Ji(✓) is the loss for a single datapoint x(i). Therefore, to compute a gradient update
+for an algorithm like stochastic gradient descent (section 10.7), we apply backpropagation
+in batch mode, that is, we run it over each datapoint in our batch (which can be done in
+parallel) and then average the results.
+In the remaining sections, we will still focus only on the case of backpropagation for the
+loss at a single datapoint. As you read on, keep in mind that doing the same for batches
+simply requires applying equation (14.11).
+14.6 Example: Backpropagation for an MLP
+In order to fully describe backprop for any given architecture, we need L for each layer in
+the network. One way to do this is to deﬁne the derivative f 0 for all atomic functions like
+addition, multiplication, and so on, and then expand every layer into a computation graph
+that involves just these atomic operations. Backprop through the expanded computation
+graph will then simply make use of all the atomic f 0s to compute the necessary L matrices.
+However, often there are more efﬁcient ways of writing backward for standard layers. In
+this section we will derive a compact backward for linear layers and relu layers — the two
+main layers in MLPs.
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+170
+Chapter 14
+14.6.1 Backpropagation for a Linear Layer
+The deﬁnition of a linear layer, in forward direction, is as follows:
+xout = Wxin + b
+(14.12)
+We have separated the parameters into W and b for clarity, but remember that we could
+always rewrite the following in terms of ✓= vec[W, b].
+The vec is the
+vectorization operator,
+which takes numbers in
+some structured format
+and rearranges them into a
+vector.
+Let xin be N-dimensional and xout
+be M-dimensional; then W is an [M ⇥N] dimensional matrix and b is an M-dimensional
+vector.
+Next we need the gradients of this function, with respect to its inputs and parameters,
+that is, L. Matrix algebra typically hides the details so we will instead ﬁrst write out all the
+individual scalar gradients:
+Here we deﬁne LW and
+Lb as matrices that store
+the gradients of each
+output with respect to
+each weight and bias,
+respectively. The columns
+of LW index over all the
+MN weights.
+Lx[i, j] = @xout[i]
+@xin[j] = @ P
+l W[i, l]xin[l]
+@xin[j]
+= W[i, j]
+(14.13)
+LW[i, jk] = @xout[i]
+@W[j, k] = @ P
+l W[i, l]xin[l]
+@W[j, k]
+=
+(
+xin[k],
+if
+i == j
+0,
+otherwise
+(14.14)
+Lb[i, j] = @xout[i]
+@b[j] =
+(
+1,
+if
+i == j
+0,
+otherwise
+(14.15)
+Equations (14.13) and (14.15) imply:
+Lx = W
+/
+[M ⇥N]
+(14.16)
+Lb = I
+/
+[M ⇥M]
+(14.17)
+There is no such simple shorthand for LW, but that is no matter, as we can proceed at this
+point to implement backward for a linear layer by plugging our computed Lx into equation
+(14.10), and LW and Lb into equation (14.9).
+gin = goutLx = goutW
+(14.18)
+@J
+@W = goutLW
+(14.19)
+@J
+@b = goutLb = gout
+(14.20)
+To get an intuition for equation (14.18), it can help to draw the matrices being multiplied.
+Below, in ﬁgure 14.8, on the left we have the forward operation of the layer (omitting
+biases) and on the right we have the backward operation in equation (14.18).
+Figure 14.8: The
+forward and backward
+matrix multiples
+for a linear layer.
+xout
+=
+W
+xin
+forward
+gin
+=
+gout
+W
+backward
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+Backpropagation
+171
+Unlike the other equations, at ﬁrst glance
+@J
+@W does not seem to have a simple form. A
+naive approach would be to ﬁrst build out the large sparse matrix LW (which is [M ⇥MN],
+with zeros wherever i 6= k in LW[i, jk]), then do the matrix multiply goutLW. We can avoid
+all those multiplications by zero by observing the following simpliﬁcation:
+@J
+@W[i, j] =
+@J
+@xout
+@xout
+@W[i, j]
+/
+[1 ⇥M][M ⇥1] ! [1 ⇥1]
+(14.21)
+=
+@J
+@xout
+h @xout[0]
+@W[i, j], …, @xout[M – 1]
+@W[i, j]
+iT
+(14.22)
+=
+@J
+@xout
+h
+…, 0, …, @xout[i]
+@W[i, j], …, 0, …
+iT
+(14.23)
+=
+@J
+@xout
+h
+…, 0, …, xin[j], …, 0, …
+iT
+(14.24)
+=
+@J
+@xout[i]xin[j]
+/
+[1 ⇥1][1 ⇥1] ! [1 ⇥1]
+(14.25)
+In matrix equations, it’s
+very useful to check that
+the dimensions all match
+up. To the right of some
+equations in this chapter,
+we denote the
+dimensionality of the
+matrices in the product,
+where xin is M
+dimensions, xout is N
+dimensions, and the loss J
+is always a scalar.
+Now we can just arrange all these scalar derivatives into the matrix for
+@J
+@W, and obtain the
+following:
+@J
+@W =
+2
+64
+@J
+@W[0,0]
+…
+@J
+@W[N–1,0]
+...
+...
+...
+@J
+@W[0,M–1]
+…
+@J
+@W[N–1,M–1]
+3
+75
+(14.26)
+=
+2
+64
+@J
+@xout[0]xin[0]
+…
+@J
+@xout[N–1]xin[0]
+...
+...
+...
+@J
+@xout[0]xin[M – 1]
+…
+@J
+@xout[N–1]xin[M – 1]
+3
+75
+(14.27)
+= xin
+@J
+@xout
+(14.28)
+= xingout
+(14.29)
+Note, we are using the
+convention of
+zero-indexing into vectors
+and matrices.
+So we see that in the end this gradient has the simple form of an outer product between
+two vectors, xin and gout (ﬁgure 14.9).
+@J
+@W
+=
+xin gout
+Figure 14.9: Matrix
+multiply for parameter
+gradient of a linear layer.
+We can summarize all these operations in the forward and backward diagram for linear
+layer in ﬁgure 14.10.
+Notice that all these operations are simple expressions, mainly involving matrix multi-
+plies. Forward and backward for a linear layer are also very easy to write in code, using
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+172
+Chapter 14
+Figure 14.10: Lin-
+ear layer forward
+and bacward.
+linear layer
+forward and backward
+xout = Wxin + b
+gin = goutW
+@J
+@W = xingout
+@J
+@b = gout
+@J
+@W
+@J
+@b
+xin, W, b
+gin
+gout
+xout
+any library that provides matrix multiplication (matmul) as a primitive. Figure 14.11 gives
+Python pseudocode for this layer.
+Figure 14.11: Pytorch-
+like pseudocode for
+a linear layer with
+forward and backward.
+class linear():
+def __init__(self, W, b, lr):
+self.W = W
+self.b = b
+self.lr = lr # learning rate
+def forward(self, x_in):
+self.x_in = x_in
+return matmul(W,x)+b
+def backward(self,J_out):
+J_in = matmul(J_out,W)
+dJdW = matmul(self.x_in,J_out)
+dJdb = J_out
+return J_in, dJdW, dJdb
+def update(self, dJdW, dJdb):
+self.W -= self.lr*dJdW.transpose()
+self.b -= self.lr*dJdb
+14.6.2 Backpropagation for a Pointwise Nonlinearity
+Pointwise nonlinearities have very simple backward functions. Let a (parameterless) scalar
+nonlinearity be h : R ! R with derivative function h0 : R ! R. Deﬁne a pointwise layer
+using h as f(xin) = [h(xin[0]), …, h(xin[N – 1])]T. Then we have
+Lx = f 0(xin) = diag([h0(xin[0]), …, h0(xin[N – 1])]T) , H0
+(14.30)
+The diag is the operator
+that places a vector on the
+diagonal of a matrix,
+whose other entries are all
+zero.
+There are no parameters to update, so we just have to calculate gin in the backward
+operation, using equation (14.10):
+gin = goutH0
+(14.31)
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+Backpropagation
+173
+As an example, for a relu layer we have:
+h0(x) =
+(
+1
+if
+x ≥0
+0
+otherwise
+(14.32)
+As a matrix multiply, the backward operation is shown in ﬁgure 14.12.
+gin
+=
+gout
+H0
+a 0 0
+0 b 0
+0 0 c
+Figure 14.12: Matrix
+multiply for backward of
+a pointwise layer.
+with a = h0(xin[0]), b = h0(xin[1]), and c = h0(xin[2]). We can simplify this equation as
+follows:
+gin[i] = gout[i]h0(xin[i])
+8i
+(14.33)
+The full set of operations for a pointwise layer is shown next in ﬁgure 14.13.
+pointwise layer
+forward and backward
+xout[i] = h(xin[i])
+gin[i] = gout[i]h0(xin[i])
+xin
+gin
+gout
+xout
+Figure 14.13: Point-
+wise layer forward and
+backward
+14.6.3 Backpropagation for Loss Layers
+The last layer we need to deﬁne for a complete MLP is the loss layer. As a simple example,
+we will derive backprop for an L2 loss function: kˆy – yk2
+2, where ˆy is the output of the
+network (prediction) and y is the ground truth.
+This layer has no parameters so we only need to derive equation (14.10) for this layer:
+Lx = @ kˆy – yk2
+2
+@ˆy
+= 2(ˆy – y)
+/
+[1 ⇥|y|]
+(14.34)
+gin = gout ⇤2(ˆy – y) = 2(ˆy – y)
+(14.35)
+Here we have made use of the fact that gout =
+@J
+@xout = @J
+@J = 1, since the output of the loss
+layer is the cost J.
+So, the backward signal sent by the L2 loss layer is a row vector of per-dimension errors
+between the prediction and the target.
+This completes our derivation of forward and backward for a L2 loss layer, yielding
+ﬁgure 14.14.
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+174
+Chapter 14
+Figure 14.14: L2
+loss layer forward
+and backward
+L2 loss layer
+forward and backward
+J = kˆy – yk2
+2
+gin = 2(ˆy – y)
+ˆy, y
+gin
+1
+J
+14.6.4 Putting It All Together: Backpropagation through an MLP
+Let’s see what happens when we put all these operations together in an MLP. We will start
+with the MLP in ﬁgure 14.1. For simplicity, we will omit biases. Let x be four-dimensional
+and z and h be three-dimensional, and ˆy be two-dimensional. The forward pass for this
+network is shown below in ﬁgure 14.15.
+Figure 14.15: Forward
+pass through an MLP.
+linear
+relu
+linear
+L2 loss
+x
+z
+h
+ˆy
+J
+z
+=
+W1
+x
+ˆy
+=
+W2 h
+h = relu(z)
+J = kˆy – yk2
+2
+For the backward pass, we will here make a slight change in convention, which will
+clarify an interesting connection between the forward and backward directions. Rather than
+representing gradients g as row vectors, we will transpose them and treat them as column
+vectors. The backward operation for transposed vectors follows from the matrix identity
+that (AB)T = BTAT:
+gT
+in = (goutW)T = WTgT
+out
+(14.36)
+Now we will draw the backward pass, using these transposed g’s, in ﬁgure 14.16.
+Figure 14.16: Backward
+pass through an MLP.
+linear
+relu
+linear
+L2 loss
+gT
+4
+gT
+3
+gT
+2
+gT
+1
+1
+gT
+4 =
+WT
+1 gT
+3
+gT
+3 =
+H0T gT
+2
+a 0 0
+0 b 0
+0 0 c
+gT
+2 =
+WT
+2 gT
+1
+gT
+1 =
+2(ˆy – y)1
+This reveals an interesting connection between forward and backward for linear lay-
+ers: backward for a linear layer is the same operation as forward, just with the weights
+transposed! We have omitted the bias terms here, but recall from equation (14.18) that the
+backward pass to the activations ignores biases anyway.
+In contrast, the relu layer is not a relu on the backward pass. Instead, it becomes a sort
+of gating matrix, parameterized by functions of the activations from the forward pass (a,
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+Backpropagation
+175
+b, and c). This matrix is all zeros except for ones on the diagonal where the activation was
+nonnegative. This layer acts to mask out gradients for variables on the negative side of the
+relu. Notice that this operation is a matrix multiply — in fact, all backward operations
+are matrix multiplies, no matter what the forward operation might be, as you can observe
+in algorithm 14.1.
+In the diagrams above, we have not yet included the computation of the parameter gradi-
+ents. At each step of the backward pass, these are computed as an outerproduct between the
+activations input to that layer, xin, and the gradients being sent back, gout (see ﬁgure 14.9).
+14.6.5 Forward-Backward Is Just a Bigger Neural Network
+In the previous section we saw that the backward pass through an neural network can itself
+be implemented as another neural network, which is in fact a linear network with parameters
+determined by the weight matrices of the original network as well as by the activations in the
+original network. Therefore, the full backward pass is a neural network! Since the forward
+pass is also a neural network (the original network), the full backpropagation algorithm—a
+forward pass followed by a backward pass—can be viewed as just one big neural network.
+The parameter gradients can be computed from this network via one additional matrix
+multiply (matmul) for each layer of the layer of the backward network. The full network,
+for a three-layer MLP, is shown in ﬁgure 14.17.
+linear
+relu
+linear
+L2 Loss
+linear
+linear
+linear
+relu
+linear
+linear
+linear
+linear
+1
+J
+W1
+W2
+W3
+x
+y
+@J
+@W1
+@J
+@W2
+@J
+@W3
+Inputs
+Outputs
+Backpropagation (1 iteration)
+WT
+1
+WT
+2
+WT
+3
+⇣@J
+@x
+⌘T
+matmul
+matmul
+m
+feFLWSntL0xyDaevDw0ePtJ/HTZ89f7Ax396beNk7gRFhl3UBHpU0OCFJCi9qh6ALhefF5WmfP79C56U1X2hVY6hMrKUAihQ8+EOJ7wholYD6UZ18+EoHafrSO6DbANGbBNn893BlC+saDQaEgq8n2VpTXkLjqRQ2MW8ViDuIQKZwEa0Ojzdt15l+wHZpGU1oVjKFmzf1a0oL1f6SIoQ4NLfzfXk/KzRoq3+WtNHVDaMTtR2WjErJb0OykA4FqVUAIJwMvSZiCQ4EBbPimL/HMIzDj+HhTzU6IOve
+thxcpeGmC8NV/KBH/xNK81sYUMwNXgurNZhFy41uptlecsVlsTVFB2NMu5ktSTu+lsXh01kd32/D6aH4ywdZ58PR8cnm51s1fsNXvDMnbEjtkHdsYmTLCGfWXf2PfBz2g/OojGt9JosKl5yf6K6OgXiN3E+g=</latexit>
+X
+dmzpmiVtJTml4Molu379zd2r4X3/w8NHOcPfx1NvGCZwIq6w7LsCjkgYnJEnhce0QdKHwqDh51/ePTtF5ac03WtWYa6iMLKUACtR8uMJz4mo1UC6Ud18OErH6bqSmyDbgBHb1P/J57uDKV9Y0Wg0JBR4P8vSmvIWHEmhsIt547EGcQIVzgI0oNHn7dpel7wIzCIprQvLULJmf59oQXu/0kVQBhdLf73Xk3/rzRoq3+atNHVDaMTVRWjErJn1WykA4FqVUAIJwMb03EhwIConGMX+PwYzDT+HgzU6
+IOtetRxcpeG8C+Yq/rpH/xJK80sYUMwNngmrNZhFy41uptlecsVlsTVFB2NMu5ktSTu+l0Xh/yz62nfBNO9cZaOs8O90f7B5uO2VP2jL1kGXvD9tkH9oVNmGAN+85+sJ/R8+hjdBh9vZJGg83ME/ZHRfwSH7LdA=</latexit>
+X
+dmzpmiVtJTml4Molu379zd2r4X3/w8NHOcPfx1NvGCZwIq6w7LsCjkgYnJEnhce0QdKHwqDh51/ePTtF5ac03WtWYa6iMLKUACtR8uMJz4mo1UC6Ud18OErH6bqSmyDbgBHb1P/J57uDKV9Y0Wg0JBR4P8vSmvIWHEmhsIt547EGcQIVzgI0oNHn7dpel7wIzCIprQvLULJmf59oQXu/0kVQBhdLf73Xk3/rzRoq3+atNHVDaMTVRWjErJn1WykA4FqVUAIJwMb03EhwIConGMX+PwYzDT+HgzU6
+IOtetRxcpeG8C+Yq/rpH/xJK80sYUMwNngmrNZhFy41uptlecsVlsTVFB2NMu5ktSTu+l0Xh/yz62nfBNO9cZaOs8O90f7B5uO2VP2jL1kGXvD9tkH9oVNmGAN+85+sJ/R8+hjdBh9vZJGg83ME/ZHRfwSH7LdA=</latexit>
+X
+dmzpmiVtJTml4Molu379zd2r4X3/w8NHOcPfx1NvGCZwIq6w7LsCjkgYnJEnhce0QdKHwqDh51/ePTtF5ac03WtWYa6iMLKUACtR8uMJz4mo1UC6Ud18OErH6bqSmyDbgBHb1P/J57uDKV9Y0Wg0JBR4P8vSmvIWHEmhsIt547EGcQIVzgI0oNHn7dpel7wIzCIprQvLULJmf59oQXu/0kVQBhdLf73Xk3/rzRoq3+atNHVDaMTVRWjErJn1WykA4FqVUAIJwMb03EhwIConGMX+PwYzDT+HgzU6
+IOtetRxcpeG8C+Yq/rpH/xJK80sYUMwNngmrNZhFy41uptlecsVlsTVFB2NMu5ktSTu+l0Xh/yz62nfBNO9cZaOs8O90f7B5uO2VP2jL1kGXvD9tkH9oVNmGAN+85+sJ/R8+hjdBh9vZJGg83ME/ZHRfwSH7LdA=</latexit>
+matmul
+Figure 14.17: The
+computation graph for
+backpropagation through
+a three-layer MLP. It’s
+just another neural net!
+Solid lines are involved in
+computing data/activation
+gradients and dotted lines
+are involved in computing
+parameter gradients.
+: params forward
+: params backward
+: data forward
+: data backward
+There are a few interesting things about this forward-backward network. One is that acti-
+vations from the relu layers get transformed to become parameters of a linear layer of
+the backward network (see equation (14.33)). There is a general term for this setup, where
+one neural net outputs values that parameterize another neural net; this is called a hyper-
+network [179]. The forward network is a hypernetwork that parameterizes the backward
+network.
+Another interesting property, which we already pointed out previously, is that the back-
+ward network only consists of linear layers. This is true no matter what the forward network
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+176
+Chapter 14
+consists of (even if it is not a conventional neural network but some arbitrary computation
+graph). The reason why this happens is because backprop implements the chain rule, and
+the chain rule is always a product of Jacobian matrices. Since a Jacobian is a matrix, clearly
+it is a linear function. But more intuitively, you can think of each Jacobian as being a locally
+linear approximation to the loss surface; hence each can be represented with a linear layer.
+14.7 Backpropagation through DAGs: Branch and Merge
+So far we have only seen chain-like graphs, –[]–[]–[]!. Can backprop handle other graphs?
+It turns out the answer is yes. Presently we will consider directed acyclic graphs (DAGs).
+In chapter 25, we will see that neural nets can also include cycles and still be trained with
+variants of backprop (e.g., backprop through time).
+In a DAG, nodes can have multiple inputs and multiple outputs. In fact, we have already
+seen several examples of such nodes in the preceding sections. For example, a linear layer
+can be thought of as having two inputs, xin and ✓, and one output xout; or it can be thought
+of as having N = |xin| + |✓| inputs and M = |xout| outputs, if we count up each dimension of
+the input and output vectors. So we have already seen DAG computation graphs.
+However, to work with general DAGs, it helps to introduce two new special modules,
+which act to construct the topology of the graph. We will call these special operators merge
+and branch (ﬁgure 14.18).
+We only consider binary
+branching and merging
+here, but branching and
+merging N ways can be
+done analogously or by
+repeating these operators.
+Figure 14.18: The merge
+and branch layers.
+merge
+branch
+We deﬁne them mathematically as variable concatenation and copying, respectively:
+merge(xa
+in, xb
+in) , [xa
+in, xb
+in] , xout
+(14.37)
+branch(xin) , [xin, xin] , [xa
+out, xb
+out]
+(14.38)
+What if xa
+in and xb
+in are
+tensors, or other objects,
+with different shapes? Can
+we still concatenate them?
+The answer is yes. The
+shape of the data tensor
+has no impact on the
+math. We pick the shape
+just as a notational
+convenience; for example,
+it’s natural to think about
+images as
+two-dimensional arrays.
+Here, merge takes two inputs and concatenates them. This results in a new multidimen-
+sional variable. The backward pass equation is trivial. To compute the gradient of the cost
+with respect to xa
+in, that is, ga
+in, we have
+ga
+in = goutLxa =
+@J
+@xout
+@xout
+@xa
+in
+(14.39)
+= gout
+h@xa
+in
+@xa
+in
+, @xb
+in
+@xa
+in
+iT
+(14.40)
+= gout[1, 0]T
+(14.41)
+and likewise for gb
+in. That is, we just pick out the ﬁrst half of the gout gradient vector
+for ga
+in and the second half for gb
+in. There is really nothing new here. We already deﬁned
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+Backpropagation
+177
+backpropagation for multidimensional variables above, and merge is just an explicit way
+of constructing multidimensional variables.
+The branch operator is only slightly more complicated. In branching, we send copies
+of the same output to multiple downstream nodes. Therefore, we have multiple gradients
+coming back to the branch module, each from different downstream paths. So the inputs to
+this module on the backward pass are
+@J
+@xa
+in ,
+@J
+@xb
+in , which we can write as the gradient vector
+gout =
+@J
+@[xa
+in,xb
+in] = [ @J
+@xa
+in ,
+@J
+@xb
+in ] = [ga
+out, gb
+out]. Let’s compute the backward pass output:
+gin = goutLx
+(14.42)
+= [ga
+out, gb
+out]@[xa
+out, xb
+out]
+@xin
+(14.43)
+= [ga
+out, gb
+out]@[xin, xin]
+@xin
+(14.44)
+= [ga
+out, gb
+out][1, 1]T
+(14.45)
+= gb
+out + gb
+out
+(14.46)
+So, branching just sums both the gradients passed backward to it.
+Both merge and branch have no parameters, so there is no parameter gradient to deﬁne.
+Thus, we have fully speciﬁed the forward and backward behavior of these layers. The next
+diagrams summarize the behavior (ﬁgure 14.19).
+merge layer
+forward and backward
+xout = [xa
+in, xb
+in]
+ga
+in = gout[1, 0]T
+gb
+in = gout[0, 1]T
+xa
+in
+xb
+in
+ga
+in
+gb
+in
+gout
+xout
+branch layer
+forward and backward
+xa
+out = xin
+xb
+out = xin
+gin = ga
+out + gb
+out
+xin
+gin
+ga
+out
+gb
+out
+xa
+out
+xb
+out
+Figure 14.19: Merge and
+branch layers forward
+and backward.
+With merge and branch, we can construct any DAG computation graph by simply insert-
+ing these layers wherever we want a layer to have multiple inputs or multiple outputs. An
+example is given in ﬁgure 14.20.
+Figure 14.20: An
+example of a DAG com-
+putation graph that we
+can construct, and do
+backpropagation through,
+with the tools deﬁned
+previously.
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+178
+Chapter 14
+14.8 Parameter Sharing
+Parameter sharing consists of a single parameter being sent as input to multiple different
+layers. We can consider this as a branching operation, as shown in ﬁgure 14.21.
+Figure 14.21: Parameter
+sharing is equivalent to
+branching a parameter in
+the computation graph.
+branch
+✓
+✓a
+✓b
+· · ·
+· · ·
+Then, from the previous section, it is clear that gradients summate for shared parameters.
+Let {✓i}N
+i=1 be a set of variables that are all copies of one free parameter ✓. Then,
+@J
+@✓=
+X
+i
+@J
+@✓i
+(14.47)
+Neural net layers that have
+their parameters shared in
+this way are sometimes
+said to use tied weights.
+14.9 Backpropagation to the Data
+Backpropagation does not distinguish between parameters and data — it treats both as
+generic inputs to parameterless modules. Therefore, we can use backprop to optimize data
+inputs to the graph just like we can use backprop to optimize parameter inputs to the graph.
+To see this, it helps to think about just the inputs and outputs to the full computation
+graph. In the forward direction, the inputs are the data and parameter settings and the output
+is the loss. In the backward direction, the input is the number 1 and the outputs are the are
+gradients of the loss with respect to the data and parameters. The full computation graph, for
+a learning problem using neural net F = fL ◦· · · ◦f1 and loss function L, is L(F(x0), y, ✓) ,
+J(x0, y, ✓). This function can itself be thought of as a single computation block, with inputs
+and outputs as speciﬁed previously (ﬁgure 14.22).
+In Pytorch you can only
+set input variables as
+optimization targets –
+these are called the leaves
+of the computation graph
+since, on the backward
+pass, they have no
+children. All the other
+variables are completely
+determined by the values
+of the input variables —
+they are not free variables.
+Figure 14.22: Full for-
+ward and backward
+passes for a learning
+problem min J(x0, y, ✓),
+collapsed into a single
+computation block.
+J(x0, y, ✓)
+✓
+x0, y
+J
+J Forward
+J0(x0, y, ✓)
+@J
+@✓
+@J
+@x0 , @J
+@y
+1
+J Backward
+From this diagram, it should be clear that data inputs and parameter inputs play sym-
+metric roles. Just as we can optimize parameters to minimize the loss, by descending the
+parameter gradient given by backward, we can also optimize input data to minimize the
+loss by descending the data gradient.
+
+
+i
+i
+i
+i
+i
+i
+i
+i
+Backpropagation
+179
+This can be useful for lots of different applications. One example is visualizing the input
+image that most activates a given neuron we are probing in a neural net. To do this, we deﬁne
+J to be the negative of the value of the neuron we are probing, that is, J(x0, ✓) = –xl[i] if we
+are interested in the i-th neuron on layer l (notice y is not used for this problem).
+It is negative so that
+minimizing the loss
+maximizes the activation.
+We show
+an example of this in ﬁgure 14.23 below, where we used backprop to ﬁnd the input image
+that most activates a node in the computation graph that scores whether or not an image is
+“a photo of a cat.” Do you see cat-like stuff in the optimized image? What does this tell you
+about how the network is working?
+Figure 14.23: Visualizing
+the optimal image of a cat
+according to a particular
+neural net. The net we
+used is called Contrastive
+Language-Image Pre-
+Training (CLIP) [394] and
+here we found the image
+that maximizes a node in
+CLIP’s computation graph
+that measures how much
+the image matches the
+text “a photo of a cat.” In
+chapter 51 we will cover
+exactly how the CLIP
+model works in more
+detail.
+Visualizations like this are
+a useful way to ﬁgure out
+what visual features a
+given neuron is sensitive
+to. Researchers often
+combine this visualization
+method with a natural
+image prior in order to
+ﬁnd an image that not
+only strongly activates the
+neuron in question but
+also looks like a natural
+photograph (e.g., [358]).
+14.10 Concluding Remarks
+Backprop is often presented as a method just for training neural networks, but it is actually
+a much more general tool than that. Backprop is an efﬁcient way to ﬁnd partial derivatives
+in computation graphs. It is general to a large family of computation graphs and can be used
+not just for learning parameters but also for optimizing data.
