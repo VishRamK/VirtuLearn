@@ -5,9 +5,30 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, date
 from dotenv import load_dotenv
-import io
+import os
 import json
 import hashlib
+import openai
+import io
+
+# Try to import optional file parsing libraries
+try:
+    from docx import Document
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+
+try:
+    import fitz  # PyMuPDF
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+
+try:
+    from pptx import Presentation
+    PPTX_AVAILABLE = True
+except ImportError:
+    PPTX_AVAILABLE = False
 
 # Import data manager
 from utils.data_manager import LectureDataManager
@@ -15,10 +36,102 @@ from utils.data_manager import LectureDataManager
 # Load environment variables
 load_dotenv()
 
+openai.api_key = os.getenv('OPENAI_API_KEY')
+
 # Initialize data manager
 @st.cache_resource
 def get_data_manager():
     return LectureDataManager(use_mongodb=True)
+
+# File parsing utility functions
+def parse_text_file(file):
+    """Parse text file content"""
+    try:
+        content = str(file.read(), "utf-8")
+        return content
+    except Exception as e:
+        st.error(f"Error reading text file: {str(e)}")
+        return ""
+
+def parse_pdf_file(file):
+    """Parse PDF file content using PyMuPDF"""
+    if not PDF_AVAILABLE:
+        st.warning("PDF parsing not available. Please install PyMuPDF: pip install PyMuPDF")
+        return ""
+    
+    try:
+        # Read the file content
+        file_bytes = file.read()
+        
+        # Open PDF document from bytes
+        pdf_document = fitz.open(stream=file_bytes, filetype="pdf")
+        
+        text = ""
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document[page_num]
+            text += page.get_text() + "\n"
+        
+        pdf_document.close()
+        return text
+    except Exception as e:
+        st.error(f"Error reading PDF file: {str(e)}")
+        return ""
+
+def parse_docx_file(file):
+    """Parse DOCX file content"""
+    if not DOCX_AVAILABLE:
+        st.warning("DOCX parsing not available. Please install python-docx: pip install python-docx")
+        return ""
+    
+    try:
+        doc = Document(io.BytesIO(file.read()))
+        text = ""
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+        return text
+    except Exception as e:
+        st.error(f"Error reading DOCX file: {str(e)}")
+        return ""
+
+def parse_pptx_file(file):
+    """Parse PPTX file content"""
+    if not PPTX_AVAILABLE:
+        st.warning("PPTX parsing not available. Please install python-pptx: pip install python-pptx")
+        return ""
+    
+    try:
+        prs = Presentation(io.BytesIO(file.read()))
+        text = ""
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, "text"):
+                    text += shape.text + "\n"
+        return text
+    except Exception as e:
+        st.error(f"Error reading PPTX file: {str(e)}")
+        return ""
+
+def parse_uploaded_file(uploaded_file):
+    """Parse uploaded file based on file type"""
+    if uploaded_file is None:
+        return ""
+    
+    file_type = uploaded_file.type
+    
+    if file_type == "text/plain":
+        return parse_text_file(uploaded_file)
+    elif file_type == "application/pdf":
+        return parse_pdf_file(uploaded_file)
+    elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        return parse_docx_file(uploaded_file)
+    elif file_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+        return parse_pptx_file(uploaded_file)
+    elif file_type == "application/vnd.ms-powerpoint":
+        st.warning("Please convert .ppt files to .pptx format for parsing")
+        return ""
+    else:
+        st.warning(f"Unsupported file type: {file_type}")
+        return ""
 
 # Page configuration
 st.set_page_config(
@@ -96,31 +209,66 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def calculate_lecture_score(transcript_text, topics_covered, learning_objectives, duration):
-    """Calculate lecture quality score based on multiple factors"""
+def calculate_lecture_score(transcript_text, topics_covered, learning_objectives, duration, source_materials="", slides_content=""):
+    """Calculate lecture quality score based on multiple factors including source materials and slides"""
     score_components = {}
+    
+    # Combine all content for comprehensive analysis
+    combined_content = transcript_text
+    if source_materials:
+        combined_content += "\n\n" + source_materials
+    if slides_content:
+        combined_content += "\n\n" + slides_content
     
     # 1. Content Correctness (40% of total score)
     word_count = len(transcript_text.split())
+    total_word_count = len(combined_content.split())
+    
+    # Base content density on transcript
     content_density = min(word_count / (duration * 10), 1.0) if duration else 0.5  # Target: 10 words per minute
-    correctness_score = content_density * 40
+    
+    # Bonus for having source materials and slides (up to 10% bonus)
+    material_bonus = 0
+    if source_materials:
+        material_bonus += min(len(source_materials.split()) / 100, 5)  # Up to 5% for source materials
+    if slides_content:
+        material_bonus += min(len(slides_content.split()) / 100, 5)  # Up to 5% for slides
+    
+    correctness_score = min((content_density * 40) + material_bonus, 40)
     score_components['Content Correctness'] = correctness_score
     
-    # 2. Class Engagement Indicators (35% of total score)
+    # 2. Class Engagement Indicators (35% of total score) - analyzed from transcript
     question_keywords = ['question', 'ask', 'think', 'discuss', 'what do you', 'anyone', 'raise your hand']
     engagement_count = sum(transcript_text.lower().count(keyword) for keyword in question_keywords)
+    
+    # Check if slides contain interactive elements
+    interactive_keywords = ['exercise', 'activity', 'group work', 'discussion', 'poll', 'quiz']
+    if slides_content:
+        engagement_count += sum(slides_content.lower().count(keyword) for keyword in interactive_keywords)
+    
     engagement_score = min(engagement_count * 3, 35)  # Max 35 points for engagement
     score_components['Class Engagement'] = engagement_score
     
-    # 3. Structure and Organization (15% of total score)
+    # 3. Structure and Organization (15% of total score) - check all materials
     structure_keywords = ['first', 'second', 'third', 'next', 'finally', 'in conclusion', 'to summarize']
-    structure_count = sum(transcript_text.lower().count(keyword) for keyword in structure_keywords)
+    structure_count = sum(combined_content.lower().count(keyword) for keyword in structure_keywords)
+    
+    # Bonus for having organized slides
+    if slides_content and any(keyword in slides_content.lower() for keyword in ['outline', 'agenda', 'objectives']):
+        structure_count += 2
+    
     structure_score = min(structure_count * 2, 15)  # Max 15 points for structure
     score_components['Structure & Organization'] = structure_score
     
-    # 4. Topic Coverage (10% of total score)
+    # 4. Topic Coverage (10% of total score) - check all materials
     topics_list = [topic.strip() for topic in topics_covered.split(",")] if topics_covered else []
-    topic_coverage_score = min(len(topics_list) * 2, 10)  # Max 10 points for topic coverage
+    topic_coverage_count = 0
+    
+    for topic in topics_list:
+        if topic.lower() in combined_content.lower():
+            topic_coverage_count += 1
+    
+    topic_coverage_score = min(topic_coverage_count * 2, 10)  # Max 10 points for topic coverage
     score_components['Topic Coverage'] = topic_coverage_score
     
     total_score = sum(score_components.values())
@@ -202,12 +350,12 @@ def show_lecture_upload():
             help="Upload lecture slides for additional context"
         )
         
-        # Additional materials (optional)
+        # Source materials (required)
         materials_files = st.file_uploader(
-            "📎 Upload Additional Materials (Optional)",
+            "📎 Upload Source Materials (Required)",
             type=['pdf', 'docx', 'xlsx', 'txt'],
             accept_multiple_files=True,
-            help="Upload handouts, assignments, or reference materials"
+            help="Upload handouts or reference materials"
         )
     
     if st.button("🔍 Evaluate Lecture Quality", type="primary"):
@@ -218,18 +366,37 @@ def show_lecture_upload():
                     data_manager = get_data_manager()
                     
                     # Process transcript file
-                    transcript_text = ""
-                    if transcript_file.type == "text/plain":
-                        transcript_text = str(transcript_file.read(), "utf-8")
-                    elif transcript_file.type == "application/pdf":
-                        st.warning("PDF processing requires additional libraries. Please upload as .txt for now.")
+                    transcript_text = parse_uploaded_file(transcript_file)
+                    if not transcript_text:
+                        st.error("Failed to parse transcript file. Please try a different format.")
                         return
-                    else:
-                        transcript_text = str(transcript_file.read(), "utf-8")
                     
-                    # Calculate lecture quality score
+                    # Process slides file if uploaded
+                    slides_content = ""
+                    if slides_file:
+                        slides_content = parse_uploaded_file(slides_file)
+                        if not slides_content:
+                            st.warning("Could not parse slides file, continuing without slides content.")
+                    
+                    # Process source materials if uploaded
+                    source_materials_content = ""
+                    if materials_files:
+                        for material_file in materials_files:
+                            material_content = parse_uploaded_file(material_file)
+                            if material_content:
+                                source_materials_content += f"\n\n--- {material_file.name} ---\n"
+                                source_materials_content += material_content
+                            else:
+                                st.warning(f"Could not parse {material_file.name}, skipping this file.")
+                    
+                    # Calculate lecture quality score with all parsed content
                     score, score_components = calculate_lecture_score(
-                        transcript_text, topics_covered, learning_objectives, duration
+                        transcript_text, 
+                        topics_covered, 
+                        learning_objectives, 
+                        duration,
+                        source_materials_content,
+                        slides_content
                     )
                     
                     # Generate evaluation report
@@ -238,16 +405,24 @@ def show_lecture_upload():
                     )
                     
                     # Create lecture entry in database
-                    lecture_id = data_manager.create_lecture_entry(
-                        title=lecture_title,
-                        teacher_id=teacher_name,
-                        course_code=course_code,
-                        date=lecture_date,
-                        transcript_text=transcript_text,
-                        duration=int(duration) if duration else None,
-                        topics=[topic.strip() for topic in topics_covered.split(",")] if topics_covered else [],
-                        objectives=[obj.strip() for obj in learning_objectives.split(",")] if learning_objectives else []
-                    )
+                    lecture_entry_data = {
+                        'title': lecture_title,
+                        'teacher_id': teacher_name,
+                        'course_code': course_code,
+                        'date': lecture_date,
+                        'transcript_text': transcript_text,
+                        'duration': int(duration) if duration else None,
+                        'topics': [topic.strip() for topic in topics_covered.split(",")] if topics_covered else [],
+                        'objectives': [obj.strip() for obj in learning_objectives.split(",")] if learning_objectives else []
+                    }
+                    
+                    # Add parsed content if available
+                    if source_materials_content:
+                        lecture_entry_data['source_materials'] = source_materials_content
+                    if slides_content:
+                        lecture_entry_data['slides_content'] = slides_content
+                    
+                    lecture_id = data_manager.create_lecture_entry(**lecture_entry_data)
                     
                     # Store evaluation results in database
                     evaluation_data = {
@@ -270,8 +445,10 @@ def show_lecture_upload():
                         # Store as metadata if store_evaluation doesn't exist
                         eval_id = data_manager.save_lecture_data(lecture_id, evaluation_data, 'evaluation')
                     
-                    # Store additional files if uploaded
+                    # Store additional files if uploaded (need to re-read since we already parsed them)
                     if slides_file:
+                        # Reset file pointer and read again for storage
+                        slides_file.seek(0)
                         file_id = data_manager.store_uploaded_file(
                             lecture_id=lecture_id,
                             file_content=slides_file.read(),
@@ -281,6 +458,8 @@ def show_lecture_upload():
                     
                     if materials_files:
                         for material_file in materials_files:
+                            # Reset file pointer and read again for storage
+                            material_file.seek(0)
                             file_id = data_manager.store_uploaded_file(
                                 lecture_id=lecture_id,
                                 file_content=material_file.read(),
