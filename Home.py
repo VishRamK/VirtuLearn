@@ -209,7 +209,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def calculate_lecture_score(transcript_text, topics_covered, learning_objectives, duration, source_materials="", slides_content=""):
+def calculate_lecture_score(transcript_text, topics_covered, duration, source_materials="", slides_content=""):
     """Calculate lecture quality score based on multiple factors including source materials and slides"""
     score_components = {}
     
@@ -331,7 +331,6 @@ def show_lecture_upload():
         
         st.subheader("Expected Content")
         topics_covered = st.text_area("Topics to be Covered:", placeholder="List expected topics separated by commas")
-        learning_objectives = st.text_area("Learning Objectives:", placeholder="What should students learn?")
     
     with col2:
         st.subheader("Upload Materials")
@@ -393,7 +392,6 @@ def show_lecture_upload():
                     score, score_components = calculate_lecture_score(
                         transcript_text, 
                         topics_covered, 
-                        learning_objectives, 
                         duration,
                         source_materials_content,
                         slides_content
@@ -412,8 +410,7 @@ def show_lecture_upload():
                         'date': lecture_date,
                         'transcript_text': transcript_text,
                         'duration': int(duration) if duration else None,
-                        'topics': [topic.strip() for topic in topics_covered.split(",")] if topics_covered else [],
-                        'objectives': [obj.strip() for obj in learning_objectives.split(",")] if learning_objectives else []
+                        'topics': [topic.strip() for topic in topics_covered.split(",")] if topics_covered else []
                     }
                     
                     # Add parsed content if available
