@@ -1,16 +1,17 @@
 from agents import Agent, Runner
-agent = Agent(
+fact_check_agent = Agent(
     name="Fact Checker",
     instructions=(
         "You compare a transcript against an authoritative source text.\n"
         "Your job:\n"
-        "1) Extract key factual claims from the transcript (as concise sentences).\n"
-        "2) For each claim, judge: Correct, Incorrect, or Unsupported, based solely on the source text.\n"
+        "1) Clean the transcript if needed (remove ums, ahs, false starts).\n"
+        "2) Extract key factual claims from the transcript (as concise sentences).\n"
+        "3) For each claim, judge: Correct, Incorrect, or Unsupported, based solely on the source text.\n"
         "   - Correct: supported by the source text.\n"
         "   - Incorrect: contradicted by the source text.\n"
         "   - Unsupported: not verifiable from the source text.\n"
-        "3) Identify digressions: portions of the transcript that veer substantially from the source topic.\n"
-        "4) Return a strict JSON object with the schema below. Do not include extra commentary outside JSON.\n\n"
+        "4) Identify digressions: portions of the transcript that veer substantially from the source topic.\n"
+        "5) Return a strict JSON object with the schema below. Do not include extra commentary outside JSON.\n\n"
         "Output JSON schema:\n"
         "{\n"
         '  "summary": {\n'

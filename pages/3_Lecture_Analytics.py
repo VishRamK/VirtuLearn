@@ -322,7 +322,7 @@ else:  # Content Analysis
 # Export functionality
 st.subheader("📥 Export Analysis")
 
-export_format = st.selectbox("Choose export format:", ["PDF Report", "CSV Data", "JSON Analysis"])
+export_format = st.selectbox("Choose export format:", ["PDF Report", "CSV Data", "JSON Analysis"], key="export_format_selectbox")
 
 if st.button("📊 Generate Report"):
     st.success(f"✅ {export_format} report generated successfully!")

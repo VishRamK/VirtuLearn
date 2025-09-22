@@ -103,7 +103,7 @@ class LectureDataManager:
             return None
     
     def create_lecture_entry(self, title, teacher_id, course_code, date, transcript_text=None, 
-                           slides_content=None, duration=None, topics=None, objectives=None):
+                           slides_content=None, duration=None, topics=None, objectives=None, source_materials=None):
         """Create a new lecture entry (with MongoDB integration)"""
         
         if self.use_mongodb and self.db_manager:
@@ -118,7 +118,8 @@ class LectureDataManager:
                     slides_content=slides_content,
                     duration=duration,
                     topics=topics,
-                    objectives=objectives
+                    objectives=objectives,
+                    source_materials=source_materials
                 )
                 return lecture_id
             except Exception as e:
@@ -139,6 +140,7 @@ class LectureDataManager:
             'duration': duration,
             'topics_covered': topics or [],
             'learning_objectives': objectives or [],
+            'source_materials': source_materials,
             'created_at': datetime.now().isoformat(),
             'status': 'uploaded'
         }

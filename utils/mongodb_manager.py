@@ -99,7 +99,8 @@ class MongoDBDataManager:
     def create_lecture_entry(self, title: str, teacher_id: str, course_code: str, 
                            date: datetime, transcript_text: Optional[str] = None,
                            slides_content: Optional[str] = None, duration: Optional[int] = None,
-                           topics: Optional[List[str]] = None, objectives: Optional[List[str]] = None) -> str:
+                           topics: Optional[List[str]] = None, objectives: Optional[List[str]] = None,
+                           source_materials: Optional[str] = None) -> str:
         """Create a new lecture entry in MongoDB"""
         
         # Generate unique lecture ID
@@ -115,6 +116,7 @@ class MongoDBDataManager:
             'duration': duration,
             'topics_covered': topics or [],
             'learning_objectives': objectives or [],
+            'source_materials': source_materials,
             'created_at': datetime.now(),
             'last_updated': datetime.now(),
             'status': 'uploaded',
